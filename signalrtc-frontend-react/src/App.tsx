@@ -20,6 +20,7 @@ const ChatApp: React.FC = () => {
     const [username, setUsername] = useState<string>('');
     const [users, setUsers] = useState<UserInfo[]>([]); // Manage the list of users
     const [isJoined, setIsJoined] = useState<boolean>(false);
+    const [selectedUser, setSelectedUser] = useState<UserInfo | null>(null); // Track the selected user for private messages
 
     const joinChat = async () => {
         if (!username) return;
@@ -88,11 +89,14 @@ const ChatApp: React.FC = () => {
     // Send message to a specific user
     const sendMessageToUser = async (targetConnectionId: string) => {
         var message = users.find(t => t.ConnectionId === targetConnectionId)?.Message;
+        var sentUser = users.find(t => t.ConnectionId === targetConnectionId);
         if (connection && message && username) {
             try {
                 await connection.invoke('SendMessageToUser', message, targetConnectionId);
                 setMessages(prevMessages => [...prevMessages, { user: 'Me', message, receiver: '' }]);
                 setMessage(''); // Clear input after sending
+                if (sentUser)
+                    updateMessages('', sentUser)// Clear input after sending
             } catch (err) {
                 console.error('Error sending message: ', err);
             }
@@ -103,8 +107,16 @@ const ChatApp: React.FC = () => {
     const loadChatHistory = async (fromUser: any, toUser: any) => {
         if (connection) {
             const response = await connection.invoke("GetChatHistory", fromUser, toUser);
-            setMessages(response); // Assuming you use a state to display chat messages
+            var messages = response.map((t: any) => ({ user: t.fromUser, message:t.message, receiver: toUser }));
+            console.log('response:',response);
+            console.log('messages:',messages);
+            setMessages(messages);
         }
+    };
+
+    const handleUserClick = (user: UserInfo) => {
+        setSelectedUser(user); // Set the selected user
+        loadChatHistory(username, user.UserName); // Load chat history with the selected user
     };
 
     function updateMessages(msg: string, user: UserInfo) {
@@ -152,9 +164,10 @@ const ChatApp: React.FC = () => {
                         <h3>Users</h3>
                         <ul>
                             {users.map((user, index) => (
-                                <li key={index}>
+                                <li key={index} onClick={() => handleUserClick(user)}>
                                     {user.UserName} (ID: {user.ConnectionId}){' '}
-                                    <div><input key={user.ConnectionId} type="text"
+                                    <div>
+                                        <input key={user.ConnectionId} type="text"
                                         placeholder="Type a message"
                                         value={user.Message}
                                         onChange={(e) => updateMessages(e.target.value, user)}></input></div>
