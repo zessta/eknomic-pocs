@@ -1,7 +1,7 @@
 # SignalRtc
 
-This project is the front end part of signalr backend dotnet engine https://github.com/zessta/signalrtc-frontend-react
+This project is the front end part of signalr chat [Link](https://github.com/zessta/eknomic-pocs/tree/main/signalrtc-frontend-react)
 
 ## Backend
 
-This is the link for dotnet app which is backend https://github.com/zessta/signalrtc-backend-dotnet 
+This is the link for dotnet app which is backend [Link](https://github.com/zessta/eknomic-pocs/tree/main/signalrtc-backend-dotnet)
