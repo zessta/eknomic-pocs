@@ -29,7 +29,7 @@ const ChatScreen: React.FC = () => {
     });
   };
 
-  // Load offline messages from AsyncStorage
+  // Load offline messages from AsyncStorage.
   const loadOfflineMessages = async () => {
     try {
       const storedMessages = await AsyncStorage.getItem('offlineMessages');
