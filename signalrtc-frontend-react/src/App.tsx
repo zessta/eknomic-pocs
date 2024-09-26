@@ -11,16 +11,15 @@ interface UserInfo {
     ConnectionId: string;
     UserName: string;
     Message: string;
+    Messages: ChatMessage[]; // Add this to track messages for each user
 }
 
 const ChatApp: React.FC = () => {
     const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [message, setMessage] = useState<string>('');
     const [username, setUsername] = useState<string>('');
     const [users, setUsers] = useState<UserInfo[]>([]); // Manage the list of users
     const [isJoined, setIsJoined] = useState<boolean>(false);
-    const [selectedUser, setSelectedUser] = useState<UserInfo | null>(null); // Track the selected user for private messages
 
     const joinChat = async () => {
         if (!username) return;
@@ -33,17 +32,16 @@ const ChatApp: React.FC = () => {
         try {
             await newConnection.start();
             console.log('Connected to SignalR server');
-            console.log('connectionId',newConnection.connectionId);
+            console.log('connectionId', newConnection.connectionId);
 
             // Invoke NewUser method on the server
             await newConnection.invoke('NewUser', username);
 
-
             // when user joins, invoke a method to get the current user list
             const userListJson = await newConnection.invoke('GetUserList');
             const updatedUsers = JSON.parse(userListJson) as UserInfo[];
-            setUsers(updatedUsers); // Immediately set the user list in state
-
+            // Add an empty messages array for each user
+            setUsers(updatedUsers.map(user => ({ ...user, Messages: [] })));
 
             // Set connection in state
             setConnection(newConnection);
@@ -58,13 +56,19 @@ const ChatApp: React.FC = () => {
         if (connection) {
             // Listen for incoming messages
             connection.on('ReceiveMessage', (user: string, message: string, receiver: string) => {
-                setMessages(prevMessages => [...prevMessages, { user, message, receiver }]);
+                setUsers(prevUsers =>
+                    prevUsers.map(u =>
+                        (u.UserName === user || u.UserName === receiver)
+                            ? { ...u, Messages: [...u.Messages, { user, message, receiver }] }
+                            : u
+                    )
+                );
             });
 
             // Listen for the updated user list and update users
             connection.on('UpdateUserList', (userListJson: string) => {
                 const updatedUsers = JSON.parse(userListJson) as UserInfo[];
-                setUsers(updatedUsers); // Update the user list in the frontend
+                setUsers(updatedUsers.map(user => ({ ...user, Messages: [] }))); // Update the user list in the frontend
             });
 
             return () => {
@@ -78,7 +82,13 @@ const ChatApp: React.FC = () => {
         if (connection && message) {
             try {
                 await connection.invoke('SendMessageToAll', message);
-                setMessages(prevMessages => [...prevMessages, { user: 'Me', message,receiver:'' }]);
+                setUsers(prevUsers =>
+                    prevUsers.map(u =>
+                        u.UserName === username
+                            ? { ...u, Messages: [...u.Messages, { user: 'Me', message, receiver: '' }] }
+                            : u
+                    )
+                );
                 setMessage('');
             } catch (err) {
                 console.error('Error sending message: ', err);
@@ -88,15 +98,21 @@ const ChatApp: React.FC = () => {
 
     // Send message to a specific user
     const sendMessageToUser = async (targetConnectionId: string) => {
-        var message = users.find(t => t.ConnectionId === targetConnectionId)?.Message;
-        var sentUser = users.find(t => t.ConnectionId === targetConnectionId);
-        if (connection && message && username) {
+        const sentUser = users.find(u => u.ConnectionId === targetConnectionId);
+        if (connection && sentUser?.Message && username) {
             try {
-                await connection.invoke('SendMessageToUser', message, targetConnectionId);
-                setMessages(prevMessages => [...prevMessages, { user: 'Me', message, receiver: '' }]);
-                setMessage(''); // Clear input after sending
-                if (sentUser)
-                    updateMessages('', sentUser)// Clear input after sending
+                await connection.invoke('SendMessageToUser', sentUser.Message, targetConnectionId);
+                setUsers(prevUsers =>
+                    prevUsers.map(u =>
+                        u.ConnectionId === targetConnectionId
+                            ? {
+                                ...u,
+                                Messages: [...u.Messages, { user: 'Me', message: sentUser.Message, receiver: sentUser.UserName }],
+                                Message: '' // Clear input after sending
+                            }
+                            : u
+                    )
+                );
             } catch (err) {
                 console.error('Error sending message: ', err);
             }
@@ -104,28 +120,32 @@ const ChatApp: React.FC = () => {
     };
 
     // Call GetChatHistory when a chat with a specific user is opened
-    const loadChatHistory = async (fromUser: any, toUser: any) => {
+    const loadChatHistory = async (fromUser: string, toUser: string) => {
         if (connection) {
-            const response = await connection.invoke("GetChatHistory", fromUser, toUser);
-            var messages = response.map((t: any) => ({ user: t.fromUser, message:t.message, receiver: toUser }));
-            console.log('response:',response);
-            console.log('messages:',messages);
-            setMessages(messages);
+            try {
+                const response = await connection.invoke("GetChatHistory", fromUser, toUser);
+                const history = response.map((t: any) => ({ user: t.fromUser, message: t.message, receiver: toUser }));
+                setUsers(prevUsers =>
+                    prevUsers.map(u =>
+                        u.UserName === toUser
+                            ? { ...u, Messages: [...history] }
+                            : u
+                    )
+                );
+            } catch (err) {
+                console.error('Error loading chat history: ', err);
+            }
         }
     };
 
     const handleUserClick = (user: UserInfo) => {
-        setSelectedUser(user); // Set the selected user
         loadChatHistory(username, user.UserName); // Load chat history with the selected user
     };
 
-    function updateMessages(msg: string, user: UserInfo) {
-
-        var newUser = users.find(t => t.ConnectionId === user.ConnectionId);
-        if (newUser)
-        newUser.Message = msg;
-
-        setUsers(users);
+    const updateMessageInput = (msg: string, user: UserInfo) => {
+        setUsers(prevUsers =>
+            prevUsers.map(u => u.ConnectionId === user.ConnectionId ? { ...u, Message: msg } : u)
+        );
     };
 
     return (
@@ -148,7 +168,7 @@ const ChatApp: React.FC = () => {
                 <div>
                     <p>Welcome, {username}!</p>
 
-                    {/* Message Input */}
+                    {/* Send message to all */}
                     <input
                         type="text"
                         placeholder="Type a message"
@@ -163,32 +183,35 @@ const ChatApp: React.FC = () => {
                     <div>
                         <h3>Users</h3>
                         <ul>
-                            {users.map((user, index) => (
-                                <li key={index} onClick={() => handleUserClick(user)}>
+                                {users.map((user, index) => (
+                                    <li key={index} onClick={() => handleUserClick(user)} style={{ border: user ? '2px solid lightblue' : '0', margin: 5, width: 500, padding: 10 }}>
                                     {user.UserName} (ID: {user.ConnectionId}){' '}
                                     <div>
-                                        <input key={user.ConnectionId} type="text"
-                                        placeholder="Type a message"
-                                        value={user.Message}
-                                        onChange={(e) => updateMessages(e.target.value, user)}></input></div>
+                                            {/* Messages exchanged with the user */}
+                                            <ul style={{ border: user.Messages.length===0?'0': '1px solid grey', margin: 5 }}>
+                                            {user.Messages.map((msg, idx) => (
+                                                <li key={idx}>
+                                                    <strong>{msg.user}:</strong> {msg.message}
+                                                </li>
+                                            ))}
+                                        </ul>
+
+                                            {/* Input to send a message to the user */}
+                                            <input style={{ verticalAlign: 'center' }}
+                                            key={user.ConnectionId}
+                                            type="text"
+                                            placeholder="Type a message"
+                                            value={user.Message}
+                                            onChange={(e) => updateMessageInput(e.target.value, user)}
+                                        />
+                                    </div>
                                     <button onClick={() => sendMessageToUser(user.ConnectionId)}>
                                         Send Private Message
                                     </button>
+
                                     <pre>
 
                                     </pre>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    {/* Message List */}
-                    <div>
-                        <h3>Messages</h3>
-                        <ul>
-                            {messages.map((msg, index) => (
-                                <li key={index}>
-                                    <strong>{msg.user}:</strong> {msg.message}
                                 </li>
                             ))}
                         </ul>
