@@ -4,6 +4,7 @@ import { database } from '../../components/firebaseConfig';
 import { ref, onValue, push } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
+import * as Device from 'expo-device';
 
 const ChatScreen: React.FC = () => {
   const [messages, setMessages] = useState<IMessage[]>([]);
@@ -12,7 +13,7 @@ const ChatScreen: React.FC = () => {
 
   // Load messages from Firebase
   const loadMessages = () => {
-    const messagesRef = ref(database, 'messages');
+    const messagesRef = ref(database, Device.modelName);
 
     onValue(messagesRef, snapshot => {
       const data = snapshot.val();
@@ -68,7 +69,7 @@ const ChatScreen: React.FC = () => {
     const messagesFromStorage: IMessage[] = JSON.parse(offlineMessages || '[]');
 
     if (messagesFromStorage.length) {
-      const messageRef = ref(database, 'messages');
+      const messageRef = ref(database, Device.modelName);
 
       // Set to keep track of sent message IDs
       const sentMessageIds = new Set<string>();
@@ -121,7 +122,7 @@ const ChatScreen: React.FC = () => {
     setMessages(updatedMessages);
 
     if (isConnected) {
-      const messageRef = ref(database, 'messages');
+      const messageRef = ref(database, Device.modelName);
       await push(messageRef, {
         _id: message._id,
         text: message.text,
