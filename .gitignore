@@ -1,0 +1,10 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/signalrtc-frontend-react/.vs
+/signalrtc-frontend-react/node_modules
+/signalrtc-backend-dotnet/.vs/SignalRtc
+/signalrtc-backend-dotnet/bin/Debug/netcoreapp3.1
+/signalrtc-backend-dotnet/obj
+/.vs
