@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, Button, ScrollView, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { RadioButton } from 'react-native-paper';
+import PdfGenerator from '../../components/PdfGenerator';
 
 const CRTScreen: React.FC = () => {
   const [formFields, setFormFields] = useState<any[]>([]);
@@ -179,6 +180,7 @@ const CRTScreen: React.FC = () => {
           </View>
         )}
       </View>
+      <PdfGenerator fields={formFields} />
       </View>
   );
 };
