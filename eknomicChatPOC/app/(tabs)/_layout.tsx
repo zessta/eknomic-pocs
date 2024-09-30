@@ -94,9 +94,9 @@ export default function TabsLayout() {
                 backgroundColor: "transparent",
               }}
             >
-              <TabBarIcon name="wechat" color={color} size={24} />
+              <TabBarIcon name="files-o" color={color} size={24} />
               <Text style={{ marginTop: 5, fontSize: 10, opacity: 0.5 }}>
-                Chat
+                CRT
               </Text>
             </View>
           ),

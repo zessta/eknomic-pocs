@@ -26,7 +26,7 @@ const ChatScreen: React.FC = () => {
         }));
 
         // Update messages state and save to AsyncStorage
-        setMessages(parsedMessages);
+        setMessages(parsedMessages.reverse());
         saveDBMessages(parsedMessages);
       }
     });
@@ -48,7 +48,7 @@ const ChatScreen: React.FC = () => {
   // Save offline messages to AsyncStorage
   const saveOfflineMessages = async (messagesList: IMessage[]) => {
     try {
-      await AsyncStorage.setItem('offlineMessages', JSON.stringify(messagesList));
+      await AsyncStorage.setItem('offlineMessages', JSON.stringify(messagesList.reverse()));
     } catch (error) {
       console.error('Failed to save offline messages:', error);
     }
@@ -79,7 +79,7 @@ const ChatScreen: React.FC = () => {
           await push(messageRef, {
             _id: message._id,
             text: message.text,
-            createdAt: message.createdAt,
+            createdAt: `${message.createdAt}`,
             user: message.user,
           });
           // sentMessageIds.add(message._id); // Mark this message as sent
@@ -116,7 +116,7 @@ const ChatScreen: React.FC = () => {
 
   const handleSend = async (newMessages: IMessage[]) => {
     const message = newMessages[0];
-
+    
     // Update local state with the new message
     const updatedMessages = GiftedChat.append(messages, newMessages);
     setMessages(updatedMessages);
@@ -126,7 +126,7 @@ const ChatScreen: React.FC = () => {
       await push(messageRef, {
         _id: message._id,
         text: message.text,
-        createdAt: message.createdAt,
+        createdAt: `${message.createdAt}`,
         user: message.user,
       });
     } else {

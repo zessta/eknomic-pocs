@@ -149,7 +149,9 @@ const CRTScreen: React.FC = () => {
           <Picker.Item label="Boolean" value="boolean" />
         </Picker>
         {renderFieldInput()}
-        <Button title={editingIndex !== null ? "Update Field" : "Add Field"} onPress={handleAddField} />
+        <View style={{marginTop: 10}}>
+        <Button  title={editingIndex !== null ? "Update Field" : "Add Field"} onPress={handleAddField} />
+        </View>
       </ScrollView>
       <View style={styles.outputContainer}>
         <Text style={styles.outputTitle}>Added Fields:</Text>
