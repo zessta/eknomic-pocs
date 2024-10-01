@@ -1,4 +1,4 @@
-﻿namespace InventoryManagement.Models
+﻿namespace InventoryManagement.Models.DTO
 {
     public class TotalInventoryDto
     {

@@ -16,11 +16,20 @@ namespace InventoryManagement.Data
         public DbSet<OriginDetails> OriginDetails { get; set; }
         public DbSet<Dimensions> Dimensions { get; set; }
         public DbSet<ExpiryDetails> ExpiryDetails { get; set; }
-        public DbSet<InventoryStatus> InventoriesStatus { get; set; }
-        public DbSet<Location> Locations { get; set; }
         public DbSet<Warehouse> Warehouses { get; set; }
         public DbSet<WarehouseInventory> WarehouseInventories { get; set; }
         public DbSet<ItemMovement> ItemMovements { get; set; }
+        public DbSet<EventStore> EventStore { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<EventStore>(entity =>
+            {
+                entity.Property(prop => prop.EventType).HasConversion<string>();
+            });
+        }
 
         public void SeedData()
         {
@@ -75,15 +84,6 @@ namespace InventoryManagement.Data
                 });
             }
 
-            // Seed Locations
-            if (!Locations.Any())
-            {
-                Locations.AddRange(new List<Location>
-                {
-                    new Location { Id = 1, LocationName = "Warehouse A", Address = "123 Main St", City = "New York", Country = "USA" },
-                    new Location { Id = 2, LocationName = "Warehouse B", Address = "456 Market Ave", City = "Los Angeles", Country = "USA" }
-                });
-            }
 
             // Seed InventoryItems
             if (!InventoryItems.Any())
@@ -117,34 +117,6 @@ namespace InventoryManagement.Data
                         OriginDetailsId = 2,
                         DimensionsId = 2,
                         ExpiryDetailsId = 2
-                    }
-                });
-            }
-
-            // Seed InventoryStatus
-            if (!InventoriesStatus.Any())
-            {
-                InventoriesStatus.AddRange(new List<InventoryStatus>
-                {
-                    new InventoryStatus
-                    {
-                        Id = 1,
-                        InventoryItemId = 1,
-                        LocationId = 1,
-                        Status = "On Shelf",
-                        StatusChangeDate = DateTime.UtcNow,
-                        Quantity = 100,
-                        MovedBy = "John Doe"
-                    },
-                    new InventoryStatus
-                    {
-                        Id = 2,
-                        InventoryItemId = 2,
-                        LocationId = 2,
-                        Status = "Dispatched",
-                        StatusChangeDate = DateTime.UtcNow,
-                        Quantity = 50,
-                        MovedBy = "Jane Smith"
                     }
                 });
             }
