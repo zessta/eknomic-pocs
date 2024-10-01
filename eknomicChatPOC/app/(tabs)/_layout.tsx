@@ -77,6 +77,31 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="crt"
+        options={{
+          title: "",
+          headerShown: false,
+          href: {
+            pathname: "/crt",
+          },
+          tabBarIcon: ({ color }) => (
+            <View
+              style={{
+                flexDirection: "column",
+                alignItems: "center",
+                marginTop: 17,
+                backgroundColor: "transparent",
+              }}
+            >
+              <TabBarIcon name="files-o" color={color} size={24} />
+              <Text style={{ marginTop: 5, fontSize: 10, opacity: 0.5 }}>
+                CRT
+              </Text>
+            </View>
+          ),
+        }}
+      />
     </Tabs>
   );
 }

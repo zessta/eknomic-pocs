@@ -41,17 +41,17 @@ namespace SignalRtc.Hubs
             var user = activeUsers.GetValueOrDefault(Context.ConnectionId);
             if (user != null)
             {
-                //// Store message in RavenDB
-                //using (var session = _store.OpenAsyncSession())
-                //{
-                //    var chatSession = new ChatSession
-                //    {
-                //        FromUser = user.UserName,
-                //        Message = message
-                //    };
-                //    await session.StoreAsync(chatSession);
-                //    await session.SaveChangesAsync();
-                //}
+                // Store message in RavenDB
+                using (var session = _store.OpenAsyncSession())
+                {
+                    var chatSession = new ChatSession
+                    {
+                        FromUser = user.UserName,
+                        Message = message
+                    };
+                    await session.StoreAsync(chatSession);
+                    await session.SaveChangesAsync();
+                }
 
                 // Send message to all clients
                 await Clients.All.SendAsync("ReceiveMessage", user.UserName, message, null);
@@ -63,24 +63,30 @@ namespace SignalRtc.Hubs
         {
             var sender = activeUsers.GetValueOrDefault(Context.ConnectionId);
             var receiver = activeUsers[targetConnectionId];
-
-            if (sender != null && activeUsers.ContainsKey(targetConnectionId))
+            try
             {
-                //// Store private message in RavenDB
-                //using (var session = _store.OpenAsyncSession())
-                //{
-                //    var chatSession = new ChatSession
-                //    {
-                //        FromUser = sender.UserName,
-                //        ToUser = receiver.UserName,
-                //        Message = message
-                //    };
-                //    await session.StoreAsync(chatSession);
-                //    await session.SaveChangesAsync();
-                //}
+                if (sender != null && activeUsers.ContainsKey(targetConnectionId))
+                {
+                    // Store private message in RavenDB
+                    using (var session = _store.OpenAsyncSession())
+                    {
+                        var chatSession = new ChatSession
+                        {
+                            FromUser = sender.UserName,
+                            ToUser = receiver.UserName,
+                            Message = message
+                        };
+                        await session.StoreAsync(chatSession);
+                        await session.SaveChangesAsync();
+                    }
 
-                // Send message to the targeted user
-                await Clients.Client(targetConnectionId).SendAsync("ReceiveMessage", sender.UserName, message, receiver.UserName);
+                    // Send message to the targeted user
+                    await Clients.Client(targetConnectionId).SendAsync("ReceiveMessage", sender.UserName, message, receiver.UserName);
+                }
+            }
+            catch (Exception e)
+            {
+                throw;
             }
         }
 

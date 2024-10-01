@@ -12,6 +12,7 @@ namespace SignalRtc.Storage
             {
                 store = new DocumentStore
                 {
+                    //Urls = new[] { "http://120.0.0.1:8080" }, // Your RavenDB URL
                     Urls = new[] { "http://localhost:8080" }, // Your RavenDB URL
                     Database = "ChatAppDb" // Name of your database
                 }.Initialize();
