@@ -9,3 +9,4 @@
 /signalrtc-backend-dotnet/obj
 /.vs
 /signalrtc-backend-dotnet/bin/Debug/net7.0
+/signalrtc-backend-dotnet/bin/Debug/net8.0

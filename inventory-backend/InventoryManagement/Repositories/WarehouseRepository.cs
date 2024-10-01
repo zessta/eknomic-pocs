@@ -16,18 +16,12 @@ namespace InventoryManagement.Repositories
 
         public async Task<IEnumerable<Warehouse>> GetAllWarehousesAsync()
         {
-            return await _context.Warehouses
-                .Include(w => w.WarehouseInventories)
-                .ThenInclude(wi => wi.InventoryItem)
-                .ToListAsync();
+            return await _context.Warehouses.ToListAsync();
         }
 
         public async Task<Warehouse> GetWarehouseByIdAsync(int id)
         {
-            return await _context.Warehouses
-                .Include(w => w.WarehouseInventories)
-                .ThenInclude(wi => wi.InventoryItem)
-                .FirstOrDefaultAsync(w => w.WarehouseId == id);
+            return await _context.Warehouses.FirstOrDefaultAsync(w => w.WarehouseId == id);
         }
 
         public async Task AddWarehouseAsync(Warehouse warehouse)

@@ -15,9 +15,6 @@ namespace InventoryManagement.Models.Entities
 
         [MaxLength(255)]
         public string Manager { get; set; }
-
-        // Navigation property - One warehouse can store many InventoryItems
-        public ICollection<WarehouseInventory> WarehouseInventories { get; set; }
     }
 }
     

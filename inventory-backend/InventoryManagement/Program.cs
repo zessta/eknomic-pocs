@@ -2,6 +2,8 @@
 using InventoryManagement.Data;
 using InventoryManagement.Repositories;
 using InventoryManagement.Repositories.Interfaces;
+using InventoryManagement.Services;
+using InventoryManagement.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 
@@ -14,8 +16,14 @@ builder.Services.AddControllers();
 //postgresql configuration
 builder.Services.AddDbContext<InventoryDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("InventoryConnection")));
 
+//Services registration
+builder.Services.AddScoped<ITransitService, TransitService>();
+builder.Services.AddScoped<IInventoryService, InventoryService>();
+
+//Repositories registration
 builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
 builder.Services.AddScoped<IWarehouseRepository, WarehouseRepository>();
+builder.Services.AddScoped<ITransitRepository, TransitRepository>();
 
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

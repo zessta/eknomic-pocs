@@ -1,8 +1,8 @@
 ﻿using InventoryManagement.Data;
 using InventoryManagement.Models.Entities;
-using InventoryManagement.Models;
 using InventoryManagement.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using InventoryManagement.Models.DTO;
 
 namespace InventoryManagement.Repositories
 {
@@ -15,67 +15,76 @@ namespace InventoryManagement.Repositories
             _context = context;
         }
 
-        public async Task<List<InventoryItemDto>> GetAllInventoryItemsAsync()
+        public async Task<List<InventoryDto>> GetAllInventoryItemsAsync()
         {
-            return await _context.InventoryItems
-                .Select(i => new InventoryItemDto
-                {
-                    Id = i.Id,
-                    Name = i.Name,
-                    Brand = i.Brand,
-                    Price = i.Price,
-                    Features = i.Features,
-                    Details = i.Details,
-                    ItemClassification = i.ItemClassification,
-                    Packaging = i.Packaging,
-                    OriginDetails = i.OriginDetails,
-                    Dimensions = i.Dimensions,
-                    ExpiryDetails = i.ExpiryDetails
-                })
-                .ToListAsync();
+            return await _context.InventoryItems.Select(iv => new InventoryDto()
+            {
+                Id = iv.Id,
+                Brand = iv.Brand,
+                Name = iv.Name,
+                Price = iv.Price,
+                Features = iv.Features,
+                Details = iv.Details,
+                Segment = iv.ItemClassification.Segment,
+                Category = iv.ItemClassification.Category,
+                ClassificationType = iv.ItemClassification.Type,
+                Height = iv.Dimensions.Height,
+                Width = iv.Dimensions.Width,
+                Length = iv.Dimensions.Length,
+                Weight = iv.Dimensions.Weight,
+                PackagingType = iv.Packaging.Type,
+                QuantityPerPackage = iv.Packaging.QuantityPerPackage,
+                CountryOfOrigin = iv.OriginDetails.CountryOfOrigin,
+                ManufacturerName = iv.OriginDetails.ManufacturerName,
+                ManufacturerDetails = iv.OriginDetails.ManufacturerDetails,
+                SupplierName = iv.OriginDetails.SupplierName,
+                SupplierContact = iv.OriginDetails.SupplierContact,
+                ManufacturingDate = iv.ExpiryDetails.ManufacturingDate,
+                ExpiryDate = iv.ExpiryDetails.ExpiryDate
+            }).ToListAsync();
         }
 
-        public async Task<InventoryItem> AddInventoryItemAsync(InventoryItemDto item, int warehouseId, int quantity)
+        public async Task<InventoryItem> AddInventoryItemAsync(InventoryDto item, int warehouseId, int quantity)
         {
             // Creating new ItemClassification
             var itemClassification = new ItemClassification()
             {
-                Category = item.ItemClassification.Category,
-                Segment = item.ItemClassification.Segment,
-                Type = item.ItemClassification.Type
+                Category = item.Category,
+                Segment = item.Segment,
+                Type = item.ClassificationType
             };
 
             // Creating new Packaging
             var packaging = new Packaging()
             {
-                Type = item.Packaging.Type,
-                QuantityPerPackage = item.Packaging.QuantityPerPackage
+                Type = item.PackagingType,
+                QuantityPerPackage = item.QuantityPerPackage
             };
 
             // Creating new OriginDetails
             var originDetails = new OriginDetails()
             {
-                CountryOfOrigin = item.OriginDetails.CountryOfOrigin,
-                ManufacturerDetails = item.OriginDetails.ManufacturerDetails,
-                ManufacturerName = item.OriginDetails.ManufacturerName,
-                SupplierContact = item.OriginDetails.SupplierContact,
-                SupplierName = item.OriginDetails.SupplierName
+                CountryOfOrigin = item.CountryOfOrigin,
+                ManufacturerDetails = item.ManufacturerDetails,
+                ManufacturerName = item.ManufacturerName,
+                SupplierContact = item.SupplierContact,
+                SupplierName = item.SupplierName
             };
 
             // Creating new Dimensions
             var dimensions = new Dimensions()
             {
-                Height = item.Dimensions.Height,
-                Length = item.Dimensions.Length,
-                Weight = item.Dimensions.Weight,
-                Width = item.Dimensions.Width
+                Height = item.Height,
+                Length = item.Length,
+                Weight = item.Weight,
+                Width = item.Width
             };
 
             // Creating new ExpiryDetails
             var expiryDetails = new ExpiryDetails()
             {
-                ExpiryDate = item.ExpiryDetails.ExpiryDate,
-                ManufacturingDate = item.ExpiryDetails.ManufacturingDate
+                ExpiryDate = item.ExpiryDate,
+                ManufacturingDate = item.ManufacturingDate
             };
 
             // Add new records to the context
@@ -121,7 +130,7 @@ namespace InventoryManagement.Repositories
 
 
 
-        public async Task<InventoryItem> UpdateInventoryItemAsync(int id, InventoryItemDto itemDto)
+        public async Task<InventoryItem> UpdateInventoryItemAsync(int id, InventoryDto itemDto)
         {
             var inventoryItem = await _context.InventoryItems.FindAsync(id);
             if (inventoryItem == null) return null;
@@ -131,11 +140,42 @@ namespace InventoryManagement.Repositories
             inventoryItem.Price = itemDto.Price;
             inventoryItem.Features = itemDto.Features;
             inventoryItem.Details = itemDto.Details;
-            inventoryItem.ItemClassification = itemDto.ItemClassification;
-            inventoryItem.Packaging = itemDto.Packaging;
-            inventoryItem.OriginDetails = itemDto.OriginDetails;
-            inventoryItem.Dimensions = itemDto.Dimensions;
-            inventoryItem.ExpiryDetails = itemDto.ExpiryDetails;
+            inventoryItem.ItemClassification = new ItemClassification()
+            {
+                Id = inventoryItem.ItemClassification.Id,
+                Category = itemDto.Category,
+                Segment = itemDto.Segment,
+                Type = itemDto.ClassificationType
+            };
+            inventoryItem.Packaging = new Packaging()
+            {
+                Id = inventoryItem.Packaging.Id,
+                QuantityPerPackage = itemDto.Id,
+                Type = itemDto.PackagingType
+            };
+            inventoryItem.OriginDetails = new OriginDetails()
+            {
+                Id = inventoryItem.OriginDetails.Id,
+                CountryOfOrigin = itemDto.CountryOfOrigin,
+                ManufacturerDetails = itemDto.ManufacturerDetails,
+                ManufacturerName = itemDto.ManufacturerName,
+                SupplierContact = itemDto.SupplierContact,
+                SupplierName = itemDto.SupplierName
+            };
+            inventoryItem.Dimensions = new Dimensions()
+            {
+                Id = inventoryItem.Dimensions.Id,
+                Height = itemDto.Height,
+                Width = itemDto.Width,
+                Length = itemDto.Length,
+                Weight = itemDto.Weight
+            };
+            inventoryItem.ExpiryDetails = new ExpiryDetails()
+            {
+                Id = inventoryItem.ExpiryDetails.Id,
+                ExpiryDate = itemDto.ExpiryDate,
+                ManufacturingDate = itemDto.ManufacturingDate
+            };
 
             await _context.SaveChangesAsync();
             return inventoryItem;
@@ -172,19 +212,30 @@ namespace InventoryManagement.Repositories
                 .Select(wi => new WarehouseInventoryDto
                 {
                     WarehouseInventoryId = wi.WarehouseInventoryId,
-                    InventoryItem = new InventoryItemDto
+                    InventoryItem = new InventoryDto
                     {
                         Id = wi.InventoryItem.Id,
-                        Name = wi.InventoryItem.Name,
                         Brand = wi.InventoryItem.Brand,
+                        Name = wi.InventoryItem.Name,
                         Price = wi.InventoryItem.Price,
                         Features = wi.InventoryItem.Features,
                         Details = wi.InventoryItem.Details,
-                        ItemClassification = wi.InventoryItem.ItemClassification,
-                        Packaging = wi.InventoryItem.Packaging,
-                        OriginDetails = wi.InventoryItem.OriginDetails,
-                        Dimensions = wi.InventoryItem.Dimensions,
-                        ExpiryDetails = wi.InventoryItem.ExpiryDetails
+                        Segment = wi.InventoryItem.ItemClassification.Segment,
+                        Category = wi.InventoryItem.ItemClassification.Category,
+                        ClassificationType = wi.InventoryItem.ItemClassification.Type,
+                        Height = wi.InventoryItem.Dimensions.Height,
+                        Width = wi.InventoryItem.Dimensions.Width,
+                        Length = wi.InventoryItem.Dimensions.Length,
+                        Weight = wi.InventoryItem.Dimensions.Weight,
+                        PackagingType = wi.InventoryItem.Packaging.Type,
+                        QuantityPerPackage = wi.InventoryItem.Packaging.QuantityPerPackage,
+                        CountryOfOrigin = wi.InventoryItem.OriginDetails.CountryOfOrigin,
+                        ManufacturerName = wi.InventoryItem.OriginDetails.ManufacturerName,
+                        ManufacturerDetails = wi.InventoryItem.OriginDetails.ManufacturerDetails,
+                        SupplierName = wi.InventoryItem.OriginDetails.SupplierName,
+                        SupplierContact = wi.InventoryItem.OriginDetails.SupplierContact,
+                        ManufacturingDate = wi.InventoryItem.ExpiryDetails.ManufacturingDate,
+                        ExpiryDate = wi.InventoryItem.ExpiryDetails.ExpiryDate
                     },
                     Quantity = wi.Quantity
                 })

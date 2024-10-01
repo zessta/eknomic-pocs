@@ -1,10 +1,10 @@
-﻿namespace InventoryManagement.Models
+﻿namespace InventoryManagement.Models.DTO
 {
     public class WarehouseInventoryDto
     {
         public int WarehouseInventoryId { get; set; }
 
-        public InventoryItemDto InventoryItem { get; set; } // Reuse InventoryItemDto
+        public InventoryDto InventoryItem { get; set; }
         public int Quantity { get; set; }
     }
 
