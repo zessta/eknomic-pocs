@@ -1,6 +1,5 @@
-﻿using InventoryManagement.Models.Events;
-using InventoryManagement.Repositories.Interfaces;
-using InventoryManagement.Services.Interfaces;
+﻿using InventoryManagement.Domain.Events;
+using InventoryManagement.Infrastructure.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 

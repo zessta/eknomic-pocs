@@ -1,6 +1,6 @@
-﻿using InventoryManagement.Models.DTO;
-using InventoryManagement.Models.Entities;
-using InventoryManagement.Repositories.Interfaces;
+﻿using InventoryManagement.Domain.DTO;
+using InventoryManagement.Domain.Entities;
+using InventoryManagement.Infrastructure.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
