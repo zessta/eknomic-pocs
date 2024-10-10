@@ -53,31 +53,6 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="chat"
-        options={{
-          title: "",
-          headerShown: false,
-          href: {
-            pathname: "/chat",
-          },
-          tabBarIcon: ({ color }) => (
-            <View
-              style={{
-                flexDirection: "column",
-                alignItems: "center",
-                marginTop: 17,
-                backgroundColor: "transparent",
-              }}
-            >
-              <TabBarIcon name="wechat" color={color} size={24} />
-              <Text style={{ marginTop: 5, fontSize: 10, opacity: 0.5 }}>
-                Chat
-              </Text>
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="crt"
         options={{
           title: "",

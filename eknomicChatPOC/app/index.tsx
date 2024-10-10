@@ -10,7 +10,7 @@ export default function Index() {
         alignItems: "center",
       }}
     >
-        <Link href="/(tabs)/chat">
+        <Link href="/(tabs)/home">
       <Text>Edit app/index.tsx to edit this screen.</Text>
     </Link>
     </View>
