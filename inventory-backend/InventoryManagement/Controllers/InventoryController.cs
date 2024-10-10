@@ -1,6 +1,5 @@
-﻿using InventoryManagement.Models.DTO;
-using InventoryManagement.Repositories.Interfaces;
-using InventoryManagement.Services.Interfaces;
+﻿using InventoryManagement.Domain.DTO;
+using InventoryManagement.Infrastructure.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InventoryManagement.Controllers

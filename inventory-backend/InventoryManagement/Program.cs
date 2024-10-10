@@ -1,9 +1,8 @@
-
-using InventoryManagement.Data;
-using InventoryManagement.Repositories;
-using InventoryManagement.Repositories.Interfaces;
-using InventoryManagement.Services;
-using InventoryManagement.Services.Interfaces;
+using InventoryManagement.Infrastructure.Data;
+using InventoryManagement.Infrastructure.Repositories;
+using InventoryManagement.Infrastructure.Repositories.Interfaces;
+using InventoryManagement.Infrastructure.Services;
+using InventoryManagement.Infrastructure.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 
