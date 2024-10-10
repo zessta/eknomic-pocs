@@ -1,26 +1,65 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bubble, GiftedChat, IMessage } from 'react-native-gifted-chat';
+import { Bubble, Composer, GiftedChat, IMessage, InputToolbar, Send } from 'react-native-gifted-chat';
 import { database } from '../components/firebaseConfig';
 import { ref, onValue, push } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import { Button, View, StyleSheet, TouchableOpacity, PanResponder, Animated } from 'react-native';
+import { Button, View, StyleSheet, TouchableOpacity, PanResponder, Animated, TouchableWithoutFeedback, Keyboard, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams } from 'expo-router';
-import SummaryWidget from '../components/SummaryWidget'; // Import the summary widget
-import { FontAwesome, MaterialIcons } from '@expo/vector-icons'; // Optional: for using icons
+import SummaryWidget from '../components/SummaryWidget';
+import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import ReplyMessageBar from '../components/ReplyMessageBar';
+import * as Clipboard from 'expo-clipboard';
+import { TextInput } from 'react-native-paper';
+// import { KeyboardAvoidingView } from 'native-base';
+const customtInputToolbar = (props: any) => {
+  return (
+    <InputToolbar
+      {...props}
+      containerStyle={{
+        backgroundColor: "#232D36",
+        borderTopWidth: 0,
+        padding: 2,
+        marginBottom: 8,
+        marginLeft: 4,
+        marginRight: 4,
+        marginTop: 4,
+        borderRadius: 20,
+        flexDirection: "column-reverse",
+        position: "relative",
+      }}
+      renderSend={(props) => (
+        <Send {...props} containerStyle={{alignContent:"center", alignItems:"center", justifyContent:"center"}}>
+          <View style={{
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 10
+          }}>
+            <Ionicons name="send" size={24}/>
+          </View>
+        </Send>
+      )}
+      renderComposer={(props) => ( <Composer {...props} textInputStyle={{ color: "white", marginTop: 4}}/> )}
+      accessoryStyle={{height: "auto"}}
+    />
+  );
+};
+
 const ChatScreen = () => {
-  const defaultUserId: number = 3; // Replace with your default user ID
+  const defaultUserId = 3; // Replace with your default user ID
   const { userId } = useLocalSearchParams();
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [pendingMessages, setPendingMessages] = useState<IMessage[]>([]);
   const [isConnected, setIsConnected] = useState<boolean>(true);
   const [showSummary, setShowSummary] = useState<boolean>(false);
-  const [iconPosition, setIconPosition] = useState(new Animated.ValueXY({ x: 100, y: 100 })); // Initial position
+  const [iconPosition] = useState(new Animated.ValueXY({ x: 100, y: 100 })); // Initial position
+  const [replyMessage, setReplyMessage] = useState<IMessage | null>(null);
 
-  // Load messages from Firebase
+  const clearReplyMessage = () => setReplyMessage(null);
+
   const loadMessages = () => {
-    const messagesRef = ref(database, `chats`);
+    const messagesRef = ref(database, 'chats');
     onValue(messagesRef, snapshot => {
       const data = snapshot.val();
       if (data) {
@@ -31,7 +70,6 @@ const ChatScreen = () => {
             Object.keys(chatMessages).forEach(messageId => {
               const msg = chatMessages[messageId];
               if (msg.user._id === Number(userId) || msg.user._id === defaultUserId) {
-                console.log('msg.image', msg.image)
                 parsedMessages.push({
                   _id: messageId,
                   text: msg.text || '',
@@ -50,7 +88,6 @@ const ChatScreen = () => {
     });
   };
 
-  // Load offline messages from AsyncStorage
   const loadOfflineMessages = async () => {
     try {
       const storedMessages = await AsyncStorage.getItem('offlineMessages');
@@ -63,7 +100,6 @@ const ChatScreen = () => {
     }
   };
 
-  // Save DB messages to AsyncStorage
   const saveDBMessages = async (messagesList: IMessage[]) => {
     try {
       await AsyncStorage.setItem('firebaseMessages', JSON.stringify(messagesList));
@@ -72,19 +108,26 @@ const ChatScreen = () => {
     }
   };
 
-  // Sync offline messages to Firebase when connected
+  const saveOfflineMessages = async (messagesList: IMessage[]) => {
+    try {
+      await AsyncStorage.setItem('offlineMessages', JSON.stringify(messagesList.reverse()));
+    } catch (error) {
+      console.error('Failed to save offline messages:', error);
+    }
+  };
+
   const syncOfflineMessagesToFirebase = async () => {
     const offlineMessages = await AsyncStorage.getItem('offlineMessages');
     const messagesFromStorage: IMessage[] = JSON.parse(offlineMessages || '[]');
 
     if (messagesFromStorage.length) {
-      const messageRef = ref(database, `chats`);
+      const messageRef = ref(database, `chats/${defaultUserId}`);
 
       for (const message of messagesFromStorage) {
         await push(messageRef, {
           _id: message._id,
           text: message.text,
-          createdAt: `${message.createdAt}`,
+          createdAt: message.createdAt,
           user: message.user,
         });
       }
@@ -127,7 +170,7 @@ const ChatScreen = () => {
       await push(messageRef, {
         _id: message._id,
         text: message.text,
-        createdAt: `${message.createdAt}`,
+        createdAt: message.createdAt,
         user: message.user,
       });
     } else {
@@ -165,34 +208,34 @@ const ChatScreen = () => {
     }
   };
 
-  const giveFeedback = (messageId: any, feedbackType: any) => {
-    const feedbackRef = ref(database, `messages/${messageId}/feedback`);
-    feedbackRef.transaction((currentFeedback) => {
-      if (!currentFeedback) {
-        return { like: 0, dislike: 0 };
-      }
-      if (feedbackType === 'like') {
-        currentFeedback.like = (currentFeedback.like || 0) + 1;
-      } else {
-        currentFeedback.dislike = (currentFeedback.dislike || 0) + 1;
-      }
-      return currentFeedback;
-    });
-  };
+  // const giveFeedback = (messageId: string, feedbackType: string) => {
+  //   const feedbackRef = ref(database, `messages/${messageId}/feedback`);
+  //   feedbackRef.transaction((currentFeedback) => {
+  //     if (!currentFeedback) {
+  //       return { like: 0, dislike: 0 };
+  //     }
+  //     if (feedbackType === 'like') {
+  //       currentFeedback.like = (currentFeedback.like || 0) + 1;
+  //     } else {
+  //       currentFeedback.dislike = (currentFeedback.dislike || 0) + 1;
+  //     }
+  //     return currentFeedback;
+  //   });
+  // };
 
-  const renderBubble = (props: any) => {
-    return (
-      <Bubble
-        {...props}
-        renderFooter={() => (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Button title="👍" onPress={() => giveFeedback(props.currentMessage._id, 'like')} />
-            <Button title="👎" onPress={() => giveFeedback(props.currentMessage._id, 'dislike')} />
-          </View>
-        )}
-      />
-    );
-  };
+  // const renderBubble = (props: any) => {
+  //   return (
+  //     <Bubble
+  //       {...props}
+  //       renderFooter={() => (
+  //         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+  //           <Button title="👍" onPress={() => giveFeedback(props.currentMessage._id, 'like')} />
+  //           <Button title="👎" onPress={() => giveFeedback(props.currentMessage._id, 'dislike')} />
+  //         </View>
+  //       )}
+  //     />
+  //   );
+  // };
 
   const toggleSummary = () => {
     setShowSummary(!showSummary);
@@ -208,7 +251,6 @@ const ChatScreen = () => {
     toggleSummary(); // Close the summary widget
   };
 
-  // PanResponder for dragging the icon
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -236,7 +278,71 @@ const ChatScreen = () => {
     })
   ).current;
 
+  const onLongPress = (context: any, message: IMessage) => {
+    context.actionSheet().showActionSheetWithOptions(
+      {
+        options: ["reply", "copy", "cancel"],
+      },
+      (buttonIndex) => {
+        switch (buttonIndex) {
+          case 0:
+            setReplyMessage(message);
+            break;
+          case 1:
+            Clipboard.setStringAsync(message.text);
+            break;
+        }
+      }
+    );
+  }
+
+  const customBubble = (props: any) => {
+    return (
+      <Bubble
+        {...props}
+        wrapperStyle={{
+          right: {
+            backgroundColor: '#30b091',
+          },
+          left: {
+            backgroundColor: "#232D36",
+          }
+        }}
+      />
+    );
+  }
+
+  const renderReplyMessageView = (props: any) => {
+    if (replyMessage) {
+      return (
+        <View 
+        style={{padding: 2, margin: 1, paddingBottom: 0, backgroundColor:"rgba(52, 52, 52, 0.5)", borderLeftColor: 'white', borderLeftWidth: 2  }}
+        >
+          <TextInput 
+          style={{fontSize: 10, color:"gray"}}
+            // isTruncated 
+            // fontSize="xs" 
+            // color="gray.300"
+          >
+            {replyMessage.text}
+          </TextInput>
+        </View>
+      );
+    }
+    return null;
+  }
+
+  const renderAccessory = () => {
+    if (replyMessage) { 
+      return (
+        <ReplyMessageBar message={replyMessage} clearReply={clearReplyMessage} />
+      );
+    }
+    return null;
+  }
   return (
+    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+
     <View style={styles.container}>
       {showSummary && (
         <SummaryWidget
@@ -249,25 +355,32 @@ const ChatScreen = () => {
         messages={messages}
         onSend={handleSend}
         user={{
-          _id: 3, // Replace with dynamic user ID
+          _id: defaultUserId, // Replace with dynamic user ID
+          name: 'Shivasai Kumar', // Optional: add user name
+          avatar:'https://ui-avatars.com/api/?background=000000&color=FFF&name=SHIVASAIKUMAR'
         }}
+        renderInputToolbar={props => customtInputToolbar(props)}
         renderUsernameOnMessage={true}
-        inverted={true} // Ensures the latest messages are at the bottom
-        renderAccessory={() => (
-          <Button title="Upload" onPress={handleImagePicker} />
-        )}
-        renderBubble={renderBubble}
+        inverted={true}
+        renderBubble={customBubble}
+        onLongPress={onLongPress}
+        renderCustomView={renderReplyMessageView}
+        renderAccessory={renderAccessory}
+        minInputToolbarHeight={60}
+        keyboardShouldPersistTaps='never'
       />
+                {/* {Platform.OS === 'android' && <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={90} />} */}
+
       <Animated.View
         style={[styles.floatingButton, { transform: iconPosition.getTranslateTransform() }]}
         {...panResponder.panHandlers}
       >
         <TouchableOpacity onPress={toggleSummary}>
           <FontAwesome name="info-circle" size={24} color="black" />
-          {/* <MaterialIcons name="summarize" size={24} color="black" /> */}
         </TouchableOpacity>
       </Animated.View>
     </View>
+    </TouchableWithoutFeedback>
   );
 };
 
@@ -278,11 +391,23 @@ const styles = StyleSheet.create({
   },
   floatingButton: {
     position: 'absolute',
-    backgroundColor: 'white', // Customize the button color
+    backgroundColor: 'white',
     borderRadius: 28,
     padding: 4,
-    elevation: 5, // Optional: shadow for Android
+    elevation: 5,
   },
 });
 
 export default ChatScreen;
+
+
+
+// {
+//  messages : [{}]
+//  senderId : 3
+//  recieverId : 1 
+// }
+
+// {messages : ['hi', 'hello', 
+//   'can you help with me python code', 'what code you need?', 'i need  function based code', 
+//   'how much should be the complexity', 'for beginners', 'okay i will in 10minutes', 'thank you']}
