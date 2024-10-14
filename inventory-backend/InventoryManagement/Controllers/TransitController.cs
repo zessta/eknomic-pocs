@@ -18,8 +18,12 @@ namespace InventoryManagement.Controllers
         [HttpPost]
         public async Task<IActionResult> TransferInventory(TransferEvent transferEvent)
         {
-            var transitResponse = await _transitService.TransitInventory(transferEvent);
-            return Ok(transitResponse);
+            var (additionTransaction, reductionTransaction) = await _transitService.TransitInventory(transferEvent);
+            return Ok(new
+            {
+                AdditionTransaction = additionTransaction,
+                ReductionTransaction = reductionTransaction
+            });
         }
     }
 }

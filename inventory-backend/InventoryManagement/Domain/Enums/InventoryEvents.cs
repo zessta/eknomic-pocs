@@ -2,6 +2,8 @@
 {
     public enum InventoryEvents
     {
-        Transfer
+        Transfer,
+        Addition,
+        Reduction
     }
 }

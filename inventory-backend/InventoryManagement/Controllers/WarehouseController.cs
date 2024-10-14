@@ -26,7 +26,7 @@ namespace InventoryManagement.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> AddWarehouse(Warehouse warehouse)
+        public async Task<IActionResult> AddWarehouse(WarehouseDto warehouse)
         {
             await _warehouseRepository.AddWarehouseAsync(warehouse);
             return Ok(warehouse);

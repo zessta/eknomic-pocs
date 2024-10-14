@@ -1,4 +1,5 @@
-﻿using InventoryManagement.Domain.Entities;
+﻿using InventoryManagement.Domain.DTO;
+using InventoryManagement.Domain.Entities;
 
 namespace InventoryManagement.Infrastructure.Repositories.Interfaces
 {
@@ -6,7 +7,7 @@ namespace InventoryManagement.Infrastructure.Repositories.Interfaces
     {
         Task<IEnumerable<Warehouse>> GetAllWarehousesAsync();
         Task<Warehouse> GetWarehouseByIdAsync(int id);
-        Task AddWarehouseAsync(Warehouse warehouse);
+        Task AddWarehouseAsync(WarehouseDto warehouse);
         Task DeleteWarehouseAsync(int id);
     }
 }
