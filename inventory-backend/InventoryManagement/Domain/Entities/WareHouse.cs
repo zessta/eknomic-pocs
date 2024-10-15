@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace InventoryManagement.Domain.Entities
 {
@@ -9,12 +10,19 @@ namespace InventoryManagement.Domain.Entities
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int WarehouseId { get; set; }
 
-        [Required]
+        
         [MaxLength(255)]
-        public string Location { get; set; }
+        public required string Location { get; set; }
 
-        [MaxLength(255)]
-        public string Manager { get; set; }
+        public Guid ManagerId {  get; set; }
+
+        [JsonIgnore]
+        [ForeignKey("ManagerId")]
+        public User Users { get; set; }
+
+
+        //[MaxLength(255)]
+        //public string Manager { get; set; }
     }
 }
     

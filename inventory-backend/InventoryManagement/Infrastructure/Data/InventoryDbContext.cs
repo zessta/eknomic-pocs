@@ -18,8 +18,8 @@ namespace InventoryManagement.Infrastructure.Data
         public DbSet<ExpiryDetails> ExpiryDetails { get; set; }
         public DbSet<Warehouse> Warehouses { get; set; }
         public DbSet<WarehouseInventory> WarehouseInventories { get; set; }
-        public DbSet<ItemMovement> ItemMovements { get; set; }
         public DbSet<EventStore> EventStore { get; set; }
+        public DbSet<User> Users { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

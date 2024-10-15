@@ -1,4 +1,5 @@
-﻿using InventoryManagement.Domain.Entities;
+﻿using InventoryManagement.Domain.DTO;
+using InventoryManagement.Domain.Entities;
 using InventoryManagement.Infrastructure.Data;
 using InventoryManagement.Infrastructure.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -24,9 +25,9 @@ namespace InventoryManagement.Infrastructure.Repositories
             return await _context.Warehouses.FirstOrDefaultAsync(w => w.WarehouseId == id);
         }
 
-        public async Task AddWarehouseAsync(Warehouse warehouse)
+        public async Task AddWarehouseAsync(WarehouseDto warehouse)
         {
-            await _context.Warehouses.AddAsync(warehouse);
+            await _context.Warehouses.AddAsync(new Warehouse() { Location = warehouse.Location, ManagerId = warehouse.ManagerId});
             await _context.SaveChangesAsync();
         }
 

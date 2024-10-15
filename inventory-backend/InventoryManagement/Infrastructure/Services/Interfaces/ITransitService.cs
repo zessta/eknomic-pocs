@@ -5,6 +5,6 @@ namespace InventoryManagement.Infrastructure.Services.Interfaces
 {
     public interface ITransitService
     {
-        public Task<EventStore> TransitInventory(TransferEvent transferEvent);
+        public Task<(EventStore, EventStore)> TransitInventory(TransferEvent transferEvent);
     }
 }

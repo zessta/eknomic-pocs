@@ -14,37 +14,58 @@ namespace InventoryManagement.Infrastructure.Services
             _transitRepository = transitRepository;
         }
 
-        public async Task<EventStore> TransitInventory(TransferEvent transferEvent)
+        /* first get inventory details of both src & dst
+           validate inventory stock and update inventories
+           raise an event to store actions
+        */
+        public async Task<(EventStore, EventStore)> TransitInventory(TransferEvent transferEvent)
+        {
+           var (sourceInventory, destinationInventory) = await GetInventories(transferEvent);
+            if (sourceInventory != null && sourceInventory.Quantity > transferEvent.Quantity)
+            {
+                await UpdateInventories(sourceInventory, destinationInventory, transferEvent);
+                return await RaiseTransferEvent(transferEvent);
+
+            }
+            return (null, null);
+        }
+
+        private async Task<(WarehouseInventory, WarehouseInventory)> GetInventories(TransferEvent transferEvent)
         {
             var sourceInventory = await _transitRepository.GetInventoryFromWarehouse(transferEvent.InventoryId, transferEvent.SourceWarehouseId);
             var destinationInventory = await _transitRepository.GetInventoryFromWarehouse(transferEvent.InventoryId, transferEvent.DestinationWarehouseId);
-            if (sourceInventory != null && sourceInventory.Quantity > transferEvent.Quantity)
-            {
-                sourceInventory.Quantity -= transferEvent.Quantity;
-                await _transitRepository.UpdateWarehouseStocks(sourceInventory);
-
-                if (destinationInventory == null)
-                {
-                    destinationInventory = new WarehouseInventory()
-                    {
-                        WarehouseId = transferEvent.DestinationWarehouseId,
-                        InventoryItemId = transferEvent.InventoryId,
-                        Quantity = transferEvent.Quantity
-                    };
-                    await _transitRepository.AddWarehouseStocks(destinationInventory);
-                }
-                else
-                {
-                    destinationInventory.Quantity += transferEvent.Quantity;
-                    await _transitRepository.UpdateWarehouseStocks(destinationInventory);
-                }
-
-                return await _transitRepository.RaiseEvent(InventoryEvents.Transfer, transferEvent);
-
-            }
-            return null;
+            return (sourceInventory, destinationInventory);
         }
 
+        private async Task UpdateInventories(WarehouseInventory sourceInventory, WarehouseInventory destinationInventory, TransferEvent transferEvent)
+        {
+            sourceInventory.Quantity -= transferEvent.Quantity;
+            await _transitRepository.UpdateWarehouseStocks(sourceInventory);
 
+            if (destinationInventory == null)
+            {
+                destinationInventory = new WarehouseInventory()
+                {
+                    WarehouseId = transferEvent.DestinationWarehouseId,
+                    InventoryItemId = transferEvent.InventoryId,
+                    Quantity = transferEvent.Quantity
+                };
+                await _transitRepository.AddWarehouseStocks(destinationInventory);
+            }
+            else
+            {
+                destinationInventory.Quantity += transferEvent.Quantity;
+                await _transitRepository.UpdateWarehouseStocks(destinationInventory);
+            }
+        }
+
+        private async Task<(EventStore, EventStore)> RaiseTransferEvent(TransferEvent transferEvent)
+        {
+            var reductionQuantity = $"- {transferEvent.Quantity}";
+            var additionQuantity = $"+ {transferEvent.Quantity}";
+            var reductionEvent = await _transitRepository.RaiseEvent(InventoryEvents.Reduction, reductionQuantity, transferEvent.SourceWarehouseId);
+            var additionEvent = await _transitRepository.RaiseEvent(InventoryEvents.Addition, additionQuantity, transferEvent.DestinationWarehouseId);
+            return (additionEvent, reductionEvent);
+        }
     }
 }

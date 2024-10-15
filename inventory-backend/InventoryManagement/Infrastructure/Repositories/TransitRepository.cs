@@ -47,13 +47,13 @@ namespace InventoryManagement.Infrastructure.Repositories
             }
         }
 
-        public async Task<EventStore> RaiseEvent<TEvent>(InventoryEvents eventType, TEvent raisedEvent)
+        public async Task<EventStore> RaiseEvent<TEvent>(InventoryEvents eventType, TEvent eventData, int warehouseId)
         {
             var eventDetails = new EventStore()
             {
                 EventType = eventType,
-                EventData = JsonSerializer.Serialize(raisedEvent),
-                TriggeredBy = Guid.NewGuid().ToString()
+                EventData = eventData?.ToString(),
+                WarehouseId = warehouseId
             };
 
             await _context.EventStore.AddAsync(eventDetails);
