@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, Button, ScrollView, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { RadioButton } from 'react-native-paper';
-import PdfGenerator from '../../components/PdfGenerator';
+import PdfGenerator from './PdfGenerator';
 
 const CRTScreen: React.FC = () => {
   const [formFields, setFormFields] = useState<any[]>([]);

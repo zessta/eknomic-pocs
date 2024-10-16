@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import SummaryWidget from '../components/SummaryWidget';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import ReplyMessageBar from '../components/ReplyMessageBar';
@@ -45,15 +45,20 @@ const customInputToolbar = (props: any) => {
 };
 
 const ChatScreen = () => {
-  const senderUserId = 1; // Replace with your default user ID
-  const { receiverUserId, receiverUserName, senderUserName } = useLocalSearchParams();
+  const navigation = useNavigation();
+
+  const { receiverUserId, receiverUserName, senderUserName, senderUserId } = useLocalSearchParams();
   console.log('senderUserName', senderUserName)
+  console.log('senderUserId', senderUserId)
+
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [pendingMessages, setPendingMessages] = useState<IMessage[]>([]);
   const [isConnected, setIsConnected] = useState<boolean>(true);
   const [showSummary, setShowSummary] = useState<boolean>(false);
   const [iconPosition] = useState(new Animated.ValueXY({ x: 100, y: 100 })); // Initial position
   const [replyMessage, setReplyMessage] = useState<IMessage | null>(null);
+  const [summary, setSummary] = useState<string | null>(null); // New state for summary
+
   const clearReplyMessage = () => setReplyMessage(null);
 
   const loadMessages = () => {
@@ -73,7 +78,10 @@ const ChatScreen = () => {
       });
     });
   };
-
+  useEffect(() => {
+    // Set the header title to receiverUserName
+    navigation.setOptions({ title: receiverUserName });
+  }, [receiverUserName]);
   const loadOfflineMessages = async () => {
     try {
       const storedMessages = await AsyncStorage.getItem('offlineMessages');
@@ -92,6 +100,10 @@ const ChatScreen = () => {
     } catch (error) {
       console.error('Failed to save DB messages:', error);
     }
+  };
+  const handleSummaryReceived = (newSummary: string) => {
+    setSummary(newSummary);
+    console.log('Received Summary:', newSummary);
   };
 
   const saveOfflineMessages = async (messagesList: IMessage[]) => {
@@ -313,17 +325,18 @@ const ChatScreen = () => {
       <View style={styles.container}>
         {showSummary && (
           <SummaryWidget
-            messages={messages}
-            onYes={handleYes}
-            onNo={handleNo}
-          />
+          messages={messages}
+          onYes={handleYes}
+          onNo={handleNo}
+          onReceiveSummary={handleSummaryReceived} // Pass the new handler
+        />
         )}
         <GiftedChat
           messages={messages}
           onSend={handleSend}
           user={{
             _id: senderUserId,
-            name: senderUserName!,
+            name: senderUserName.toString()!,
             avatar: `https://ui-avatars.com/api/?background=000000&color=FFF&name=${senderUserName}`
           }}
           renderInputToolbar={props => customInputToolbar(props)}

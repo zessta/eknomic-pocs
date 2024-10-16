@@ -30,35 +30,15 @@ export default function TabsLayout() {
         )
       }
     >
+     
+     
       <Tabs.Screen
-        name="home"
-        options={{
-          href: "/home",
-          title: "",
-          tabBarIcon: ({ color }) => (
-            <View
-              style={{
-                flexDirection: "column",
-                alignItems: "center",
-                marginTop: 17,
-                backgroundColor: "transparent",
-              }}
-            >
-              <TabBarIcon name="home" color={color} size={24} />
-              <Text style={{ marginTop: 5, fontSize: 10, opacity: 0.5 }}>
-                Home
-              </Text>
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="crt"
+        name="chatTest"
         options={{
           title: "",
           headerShown: false,
           href: {
-            pathname: "/crt",
+            pathname: "/chatTest",
           },
           tabBarIcon: ({ color }) => (
             <View
@@ -71,32 +51,7 @@ export default function TabsLayout() {
             >
               <TabBarIcon name="files-o" color={color} size={24} />
               <Text style={{ marginTop: 5, fontSize: 10, opacity: 0.5 }}>
-                CRT
-              </Text>
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="chatWithSignalR"
-        options={{
-          title: "",
-          headerShown: false,
-          href: {
-            pathname: "/chatWithSignalR",
-          },
-          tabBarIcon: ({ color }) => (
-            <View
-              style={{
-                flexDirection: "column",
-                alignItems: "center",
-                marginTop: 17,
-                backgroundColor: "transparent",
-              }}
-            >
-              <TabBarIcon name="files-o" color={color} size={24} />
-              <Text style={{ marginTop: 5, fontSize: 10, opacity: 0.5 }}>
-                SignalR
+                Chat
               </Text>
             </View>
           ),

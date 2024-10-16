@@ -1,25 +1,49 @@
 import React from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
+import axios from 'axios';
 import { IMessage } from 'react-native-gifted-chat';
 
 interface SummaryWidgetProps {
   messages: IMessage[];
   onYes: () => void;
   onNo: () => void;
+  onReceiveSummary: (summary: string) => void; // New prop
 }
 
-const SummaryWidget: React.FC<SummaryWidgetProps> = ({ messages, onYes, onNo }) => {
+const SummaryWidget: React.FC<SummaryWidgetProps> = ({ messages, onYes, onNo, onReceiveSummary }) => {
   const getSummary = () => {
-    const lastMessages = messages.slice(-10);
-    // return lastMessages.map(msg => msg.text).join(' | ');
-    return 'Do you want summary of last 10 messages?'
+    return 'Do you want summary of last 10 messages?';
+  };
+
+  const handleYes = async () => {
+    const messageTexts = messages.map(msg => msg.text).join(' | ');
+    console.log('messageTexts', messageTexts)
+    try {
+      const response = await axios.post('http://127.0.0.1:8000/gpt-response', {
+        text: messageTexts,
+      });
+
+      console.log('API Response:', response.data);
+      onReceiveSummary(response.data); // Pass the summary back to ChatScreen
+    } catch (error) {
+      console.error('Error fetching summary:', error.message);
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      console.error('Response data:', error.response.data);
+      console.error('Response status:', error.response.status);
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('Request data:', error.request);
+    }
+  }
+    onYes(); // Call the onYes callback after making the API call
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.summaryText}>{getSummary()}</Text>
       <View style={styles.buttonContainer}>
-        <Button title="Yes" onPress={onYes} />
+        <Button title="Yes" onPress={handleYes} />
         <Button title="No" onPress={onNo} />
       </View>
     </View>
@@ -40,7 +64,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 10
+    gap: 10,
   },
 });
 

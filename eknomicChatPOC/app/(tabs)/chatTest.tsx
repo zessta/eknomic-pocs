@@ -4,16 +4,17 @@ import { ref, onValue } from 'firebase/database';
 import { database } from '../../components/firebaseConfig';
 import { Link } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 
-interface User {
-    id: string; // Changed to string to match Firebase keys
+export interface User {
+    id: number; // Changed to string to match Firebase keys
     name: string;
     avatar?: string; // Optional avatar URL
 }
 
 const UserListScreen = ({ navigation }: any) => {
-  const senderUserId = 1;
     const [users, setUsers] = useState<User[]>([]);
+    const { senderUserId } = useLocalSearchParams();
 
     useEffect(() => {
         const usersRef = ref(database, 'users');
@@ -24,25 +25,25 @@ const UserListScreen = ({ navigation }: any) => {
         });
     }, []);
     console.log('users', users)
-    const senderUserName = users.length ? users.find((user) => user.id as unknown as number === senderUserId)?.name : '';
+    const senderUserName = users.length ? users.find((user) => user.id === Number(senderUserId))?.name : '';
     console.log('senderUserNamefilter', senderUserName)
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.headerText}>User List</Text>
+                <Text style={styles.headerText}>Buyers</Text>
                 <MaterialIcons name="group" size={24} color="#fff" />
             </View>
             <FlatList
                 data={users}
-                keyExtractor={item => item.id}
+                keyExtractor={item => `${item.id}`}
                 renderItem={({ item }) => {
-                  if(item.id as unknown as number !== senderUserId){
+                  if(item.id !== Number(senderUserId)){
                   return (
                     <Link
                     style={styles.userCard}
                         href={{
                             pathname: '/chat',
-                            params: { receiverUserId: item.id, receiverUserName: item.name, senderUserName: senderUserName}
+                            params: { receiverUserId: item.id, receiverUserName: item.name, senderUserName: senderUserName, senderUserId: senderUserId}
                         }}>
                             <Image source={{ uri: item.avatar || 'https://ui-avatars.com/api/?name=User' }} style={styles.avatar} />
                             <View style={styles.userInfo}>
