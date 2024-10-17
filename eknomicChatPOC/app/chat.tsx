@@ -44,44 +44,44 @@ const customInputToolbar = (props: any) => {
   );
 };
 
-const ChatScreen = () => {
+const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
 
   const { receiverUserId, receiverUserName, senderUserName, senderUserId } = useLocalSearchParams();
-  console.log('senderUserName', senderUserName)
-  console.log('senderUserId', senderUserId)
-
+  
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [pendingMessages, setPendingMessages] = useState<IMessage[]>([]);
   const [isConnected, setIsConnected] = useState<boolean>(true);
   const [showSummary, setShowSummary] = useState<boolean>(false);
-  const [iconPosition] = useState(new Animated.ValueXY({ x: 100, y: 100 })); // Initial position
+  const [iconPosition] = useState(new Animated.ValueXY({ x: 100, y: 100 }));
   const [replyMessage, setReplyMessage] = useState<IMessage | null>(null);
-  const [summary, setSummary] = useState<string | null>(null); // New state for summary
-
+  
   const clearReplyMessage = () => setReplyMessage(null);
 
   const loadMessages = () => {
     const senderMessagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
     const receiverMessagesRef = ref(database, `chats/${receiverUserId}_${senderUserId}`);
-
+   
     onValue(senderMessagesRef, snapshot => {
-      const senderMessages:IMessage[] = snapshot.val() ? Object.values(snapshot.val()) : [];
+      const senderMessages: IMessage[] = snapshot.val() ? Object.values(snapshot.val()) : [];
       onValue(receiverMessagesRef, snapshot => {
-        const receiverMessages:IMessage[] = snapshot.val() ? Object.values(snapshot.val()) : [];
-        console.log('receiverMessages', receiverMessages)
-        const allMessages:IMessage[]  = [...senderMessages.reverse(), ...receiverMessages.reverse()];
+        const receiverMessages: IMessage[] = snapshot.val() ? Object.values(snapshot.val()) : [];
+     const allMessages: IMessage[] = [...senderMessages.reverse(), ...receiverMessages.reverse()].map(msg => ({
+    ...msg,
+    createdAt: new Date(msg.createdAt).getTime(), // Ensure createdAt is a timestamp
+  })).sort((a, b) => a.createdAt - b.createdAt);
 
-        
-        setMessages(allMessages);
-        saveDBMessages(allMessages);
+  
+  setMessages(allMessages);
+  saveDBMessages(allMessages);
       });
     });
   };
+
   useEffect(() => {
-    // Set the header title to receiverUserName
     navigation.setOptions({ title: receiverUserName });
   }, [receiverUserName]);
+
   const loadOfflineMessages = async () => {
     try {
       const storedMessages = await AsyncStorage.getItem('offlineMessages');
@@ -101,8 +101,24 @@ const ChatScreen = () => {
       console.error('Failed to save DB messages:', error);
     }
   };
-  const handleSummaryReceived = (newSummary: string) => {
-    setSummary(newSummary);
+
+  const handleSummaryReceived = async(newSummary: string) => {
+    const summaryMessage: IMessage = {
+      _id: Math.random().toString(),
+      text: newSummary,
+      createdAt: new Date().getTime(),
+      user: { _id: 1, name: 'Summary' }, // Unique ID for summary
+    };
+    const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
+    await push(messageRef, {
+      _id: summaryMessage._id,
+      text: summaryMessage.text,
+      createdAt: summaryMessage.createdAt, // Save as ISO string
+      user: summaryMessage.user,
+    });
+  
+    const updatedMessagesWithSummary = GiftedChat.append(messages, [summaryMessage]);
+    setPendingMessages(updatedMessagesWithSummary);
     console.log('Received Summary:', newSummary);
   };
 
@@ -125,11 +141,11 @@ const ChatScreen = () => {
         await push(messageRef, {
           _id: message._id,
           text: message.text,
-          createdAt: message.createdAt,
+          createdAt: new Date().getTime(),
           user: message.user,
         });
       }
-      await removeValue(); // Clear offline messages after syncing
+      await removeValue();
     }
   };
 
@@ -146,7 +162,7 @@ const ChatScreen = () => {
     loadOfflineMessages();
 
     const unsubscribe = NetInfo.addEventListener(state => {
-      setIsConnected(state.isConnected);
+      setIsConnected(state.isConnected!);
     });
 
     return () => unsubscribe();
@@ -168,7 +184,7 @@ const ChatScreen = () => {
       await push(messageRef, {
         _id: message._id,
         text: message.text,
-        createdAt: message.createdAt,
+        createdAt: new Date().getTime(),
         user: message.user,
       });
     } else {
@@ -190,18 +206,17 @@ const ChatScreen = () => {
       const message: IMessage = {
         _id: Math.random().toString(),
         text: '',
-        createdAt: new Date(),
-        user: { _id: Number(receiverUserId), name: 'User' }, // Replace with actual user info
-        image: result.assets[0].uri, // Get image URI
+        createdAt: new Date().getTime(),
+        user: { _id: Number(receiverUserId), name: 'User' },
+        image: result.assets[0].uri,
       };
       await handleSend([message]);
 
-      // Save image URL to Firebase
       const messagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
       await push(messagesRef, {
         image: result.assets[0].uri,
-        createdAt: new Date().toISOString(),
-        user: { _id: Number(receiverUserId), name: 'User' }, // Replace with actual user info
+        createdAt: new Date().getTime(),
+        user: { _id: Number(receiverUserId), name: 'User' },
       });
     }
   };
@@ -212,12 +227,12 @@ const ChatScreen = () => {
 
   const handleYes = () => {
     console.log("User selected Yes");
-    toggleSummary(); // Close the summary widget
+    toggleSummary();
   };
 
   const handleNo = () => {
     console.log("User selected No");
-    toggleSummary(); // Close the summary widget
+    toggleSummary();
   };
 
   const panResponder = useRef(
@@ -263,7 +278,7 @@ const ChatScreen = () => {
         }
       }
     );
-  }
+  };
 
   const customBubble = (props: any) => {
     return (
@@ -274,12 +289,20 @@ const ChatScreen = () => {
             backgroundColor: '#30b091',
           },
           left: {
-            backgroundColor: "#232D36",
+            backgroundColor: "grey",
           }
+        }}
+        textStyle={{
+          right: {
+            color: 'white', // Text color for sent messages (right bubble)
+          },
+          left: {
+            color: 'white', // Text color for received messages (left bubble)
+          },
         }}
       />
     );
-  }
+  };
 
   const renderReplyMessageView = (props: any) => {
     if (replyMessage) {
@@ -297,7 +320,7 @@ const ChatScreen = () => {
       );
     }
     return null;
-  }
+  };
 
   const renderAccessory = () => {
     if (replyMessage) { 
@@ -306,8 +329,7 @@ const ChatScreen = () => {
       );
     }
     return null;
-  }
-
+  };
 
   const renderMessage = (props: any) => {
     if (messages.length === 0) {
@@ -325,11 +347,13 @@ const ChatScreen = () => {
       <View style={styles.container}>
         {showSummary && (
           <SummaryWidget
-          messages={messages}
-          onYes={handleYes}
-          onNo={handleNo}
-          onReceiveSummary={handleSummaryReceived} // Pass the new handler
-        />
+            messages={messages}
+             onYes={handleYes}
+            onNo={handleNo}
+            onReceiveSummary={handleSummaryReceived}
+            senderUserId={Number(senderUserId)}
+            receiverUserId={Number(receiverUserId)}
+          />
         )}
         <GiftedChat
           messages={messages}
@@ -341,14 +365,13 @@ const ChatScreen = () => {
           }}
           renderInputToolbar={props => customInputToolbar(props)}
           renderUsernameOnMessage={true}
-          inverted={true}
+          inverted={false}
           renderBubble={customBubble}
           onLongPress={onLongPress}
           renderCustomView={renderReplyMessageView}
           renderAccessory={renderAccessory}
           minInputToolbarHeight={60}
           keyboardShouldPersistTaps='never'
-          //  renderMessage={renderMessage} // Use the custom renderMessage function
         />
         <Animated.View
           style={[styles.floatingButton, { transform: iconPosition.getTranslateTransform() }]}
@@ -379,12 +402,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-},
-emptyMessageText: {
+  },
+  emptyMessageText: {
     fontSize: 18,
     color: '#888',
     textAlign: 'center',
-},
+  },
 });
 
 export default ChatScreen;

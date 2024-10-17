@@ -6,18 +6,19 @@ import { IMessage } from 'react-native-gifted-chat';
 interface SummaryWidgetProps {
   messages: IMessage[];
   onYes: () => void;
-  onNo: () => void;
+   onNo: () => void;
   onReceiveSummary: (summary: string) => void; // New prop
+  senderUserId: number;
+  receiverUserId: number;
 }
 
-const SummaryWidget: React.FC<SummaryWidgetProps> = ({ messages, onYes, onNo, onReceiveSummary }) => {
+const SummaryWidget: React.FC<SummaryWidgetProps> = ({ messages, senderUserId, receiverUserId,onYes, onNo, onReceiveSummary }) => {
   const getSummary = () => {
     return 'Do you want summary of last 10 messages?';
   };
-
   const handleYes = async () => {
-    const messageTexts = messages.map(msg => msg.text).join(' | ');
-    console.log('messageTexts', messageTexts)
+    const messagesFiltered = messages.filter((message) => message.user.name !== 'Summary')
+    const messageTexts = messagesFiltered.map(msg => msg.text).join(' | ');
     try {
       const response = await axios.post('http://127.0.0.1:8000/gpt-response', {
         text: messageTexts,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import { ref, set, onValue } from 'firebase/database';
 import { database } from '../components/firebaseConfig';
-import { useRouter } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 
 interface User {
     id: number;
@@ -15,7 +15,11 @@ const UserScreen: React.FC = () => {
     const [avatar, setAvatar] = useState<string>('');
     const [users, setUsers] = useState<Record<string, User>>({});
     const router = useRouter();
+    const navigation = useNavigation();
 
+    useEffect(() => {
+        navigation.setOptions({ title: 'Eknomic' });
+      }, []);
     useEffect(() => {
         const usersRef = ref(database, 'users');
         onValue(usersRef, (snapshot) => {
@@ -53,7 +57,7 @@ const UserScreen: React.FC = () => {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Eknomic</Text>
+            <Text style={styles.title}>Login</Text>
             <TextInput
                 style={styles.input}
                 placeholder="Name"
