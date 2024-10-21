@@ -19,7 +19,7 @@ namespace InventoryManagement.Infrastructure.Repositories
         {
             return await _context.InventoryItems.Select(iv => new InventoryDto()
             {
-                Id = iv.Id,
+                Id = iv.Id.ToString(),
                 Brand = iv.Brand,
                 Name = iv.Name,
                 Price = iv.Price,
@@ -44,7 +44,7 @@ namespace InventoryManagement.Infrastructure.Repositories
             }).ToListAsync();
         }
 
-        public async Task<InventoryItem> AddInventoryItemAsync(InventoryDto item, int warehouseId, int quantity)
+        public async Task<string> AddInventoryItemAsync(InventoryDto item, string warehouseId, int quantity)
         {
             // Creating new ItemClassification
             var itemClassification = new ItemClassification()
@@ -117,7 +117,7 @@ namespace InventoryManagement.Infrastructure.Repositories
             // Associate InventoryItem with Warehouse
             var warehouseInventory = new WarehouseInventory()
             {
-                WarehouseId = warehouseId,
+                WarehouseId = int.Parse(warehouseId),
                 InventoryItemId = inventoryItem.Id,
                 Quantity = quantity
             };
@@ -125,15 +125,15 @@ namespace InventoryManagement.Infrastructure.Repositories
             // Add WarehouseInventory to the context
             await _context.WarehouseInventories.AddAsync(warehouseInventory);
             await _context.SaveChangesAsync();
-            return inventoryItem;
+            return inventoryItem.Id.ToString();
         }
 
 
 
-        public async Task<InventoryItem> UpdateInventoryItemAsync(int id, InventoryDto itemDto)
+        public async Task<bool> UpdateInventoryItemAsync(string id, InventoryDto itemDto)
         {
             var inventoryItem = await _context.InventoryItems.FindAsync(id);
-            if (inventoryItem == null) return null;
+            if (inventoryItem == null) return false;
 
             inventoryItem.Name = itemDto.Name;
             inventoryItem.Brand = itemDto.Brand;
@@ -150,7 +150,7 @@ namespace InventoryManagement.Infrastructure.Repositories
             inventoryItem.Packaging = new Packaging()
             {
                 Id = inventoryItem.Packaging.Id,
-                QuantityPerPackage = itemDto.Id,
+                QuantityPerPackage = itemDto.QuantityPerPackage,
                 Type = itemDto.PackagingType
             };
             inventoryItem.OriginDetails = new OriginDetails()
@@ -178,12 +178,12 @@ namespace InventoryManagement.Infrastructure.Repositories
             };
 
             await _context.SaveChangesAsync();
-            return inventoryItem;
+            return true;
         }
 
-        public async Task<bool> DeleteInventoryItemAsync(int id)
+        public async Task<bool> DeleteInventoryItemAsync(string id)
         {
-            var inventoryItem = await _context.InventoryItems.FindAsync(id);
+            var inventoryItem = await _context.InventoryItems.FindAsync(int.Parse(id));
             if (inventoryItem == null) return false;
 
             _context.InventoryItems.Remove(inventoryItem);
@@ -192,10 +192,10 @@ namespace InventoryManagement.Infrastructure.Repositories
             return true;
         }
 
-        public async Task<bool> UpdateInventoryQuantityAsync(int warehouseId, int inventoryItemId, int quantity)
+        public async Task<bool> UpdateInventoryQuantityAsync(string warehouseId, string inventoryItemId, int quantity)
         {
             var warehouseInventory = await _context.WarehouseInventories
-                .FirstOrDefaultAsync(wi => wi.WarehouseId == warehouseId && wi.InventoryItemId == inventoryItemId);
+                .FirstOrDefaultAsync(wi => wi.WarehouseId == int.Parse(warehouseId) && wi.InventoryItemId == int.Parse(inventoryItemId));
 
             if (warehouseInventory == null) return false;
 
@@ -205,16 +205,16 @@ namespace InventoryManagement.Infrastructure.Repositories
             return true;
         }
 
-        public async Task<List<WarehouseInventoryDto>> GetInventoryByWarehouseAsync(int warehouseId)
+        public async Task<List<WarehouseStockDto>> GetInventoryByWarehouseAsync(string warehouseId)
         {
             return await _context.WarehouseInventories
-                .Where(wi => wi.WarehouseId == warehouseId)
-                .Select(wi => new WarehouseInventoryDto
+                .Where(wi => wi.WarehouseId == int.Parse(warehouseId))
+                .Select(wi => new WarehouseStockDto
                 {
-                    WarehouseInventoryId = wi.WarehouseInventoryId,
+                    WarehouseInventoryId = wi.WarehouseInventoryId.ToString(),
                     InventoryItem = new InventoryDto
                     {
-                        Id = wi.InventoryItem.Id,
+                        Id = wi.InventoryItem.Id.ToString(),
                         Brand = wi.InventoryItem.Brand,
                         Name = wi.InventoryItem.Name,
                         Price = wi.InventoryItem.Price,
@@ -249,7 +249,7 @@ namespace InventoryManagement.Infrastructure.Repositories
                 .GroupBy(wi => wi.InventoryItemId)
                 .Select(g => new TotalInventoryDto
                 {
-                    InventoryItemId = g.Key,
+                    InventoryItemId = g.Key.ToString(),
                     TotalQuantity = g.Sum(wi => wi.Quantity)
                 })
                 .ToListAsync();

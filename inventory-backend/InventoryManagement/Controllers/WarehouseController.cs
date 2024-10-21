@@ -1,5 +1,6 @@
 ﻿using InventoryManagement.Domain.DTO;
 using InventoryManagement.Domain.Entities;
+using InventoryManagement.Filters;
 using InventoryManagement.Infrastructure.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,7 @@ namespace InventoryManagement.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [UriParserAttribute]
     public class WarehouseController : ControllerBase
     {
         private readonly IWarehouseRepository _warehouseRepository;
@@ -33,7 +35,7 @@ namespace InventoryManagement.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteWarehouse(int id)
+        public async Task<IActionResult> DeleteWarehouse(string id)
         {
             var warehouse = await _warehouseRepository.GetWarehouseByIdAsync(id);
             if (warehouse == null)

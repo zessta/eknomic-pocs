@@ -4,6 +4,7 @@ using System.Text.Json;
 using InventoryManagement.Domain.Enums;
 using InventoryManagement.Infrastructure.Data;
 using InventoryManagement.Infrastructure.Repositories.Interfaces;
+using InventoryManagement.Domain.DTO;
 
 namespace InventoryManagement.Infrastructure.Repositories
 {
@@ -14,16 +15,32 @@ namespace InventoryManagement.Infrastructure.Repositories
         {
             _context = context;
         }
-        public async Task<WarehouseInventory> GetInventoryFromWarehouse(int inventoryId, int warehouseId)
+        public async Task<WarehouseInventoryDto> GetInventoryFromWarehouse(string inventoryId, string warehouseId)
         {
-            return await _context.WarehouseInventories.FirstOrDefaultAsync(iv => iv.InventoryItemId == inventoryId && iv.WarehouseId == warehouseId);
+            var warehouseInventory = await _context.WarehouseInventories.AsNoTracking().FirstOrDefaultAsync(iv => iv.InventoryItemId == int.Parse(inventoryId) && iv.WarehouseId == int.Parse(warehouseId));
+            return new WarehouseInventoryDto
+            {
+                WarehouseInventoryId = warehouseInventory.WarehouseInventoryId.ToString(),
+                WarehouseId = warehouseInventory.WarehouseId.ToString(),
+                InventoryItemId = warehouseInventory.InventoryItemId.ToString(),
+                Quantity = warehouseInventory.Quantity
+            };
         }
 
-        public async Task<bool> UpdateWarehouseStocks(WarehouseInventory inventory)
+        public async Task<bool> UpdateWarehouseStocks(WarehouseInventoryDto inventory)
         {
             try
             {
-                _context.WarehouseInventories.Update(inventory);
+                var updatedWarehouseInventory = new WarehouseInventory
+                {
+                    WarehouseInventoryId = int.Parse(inventory.WarehouseInventoryId),
+                    WarehouseId = int.Parse(inventory.WarehouseId),
+                    InventoryItemId = int.Parse(inventory.InventoryItemId),
+                    Quantity = inventory.Quantity
+                };
+
+                _context.WarehouseInventories.Attach(updatedWarehouseInventory);
+                _context.Entry(updatedWarehouseInventory).State = EntityState.Modified;
                 await _context.SaveChangesAsync();
                 return true;
             }
@@ -33,11 +50,16 @@ namespace InventoryManagement.Infrastructure.Repositories
             }
         }
 
-        public async Task<bool> AddWarehouseStocks(WarehouseInventory inventory)
+        public async Task<bool> AddWarehouseStocks(WarehouseInventoryDto inventory)
         {
             try
             {
-                _context.WarehouseInventories.Add(inventory);
+                _context.WarehouseInventories.Add(new WarehouseInventory
+                {
+                    WarehouseId = int.Parse(inventory.WarehouseId),
+                    InventoryItemId = int.Parse(inventory.InventoryItemId),
+                    Quantity = inventory.Quantity
+                });
                 await _context.SaveChangesAsync();
                 return true;
             }
@@ -47,18 +69,24 @@ namespace InventoryManagement.Infrastructure.Repositories
             }
         }
 
-        public async Task<EventStore> RaiseEvent<TEvent>(InventoryEvents eventType, TEvent eventData, int warehouseId)
+        public async Task<EventStoreDto> RaiseEvent<TEvent>(InventoryEvents eventType, TEvent eventData, string warehouseId)
         {
             var eventDetails = new EventStore()
             {
                 EventType = eventType,
                 EventData = eventData?.ToString(),
-                WarehouseId = warehouseId
+                WarehouseId = int.Parse(warehouseId)
             };
 
             await _context.EventStore.AddAsync(eventDetails);
             await _context.SaveChangesAsync();
-            return eventDetails;
+            return new EventStoreDto
+            {
+                EventId = eventDetails.EventId.ToString(),
+                EventType = eventType,
+                EventData = eventData?.ToString(),
+                WarehouseId = warehouseId
+            };
         }
     }
 }

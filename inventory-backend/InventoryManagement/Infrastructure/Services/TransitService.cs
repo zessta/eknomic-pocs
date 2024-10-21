@@ -3,6 +3,7 @@ using InventoryManagement.Domain.Events;
 using InventoryManagement.Domain.Enums;
 using InventoryManagement.Infrastructure.Repositories.Interfaces;
 using InventoryManagement.Infrastructure.Services.Interfaces;
+using InventoryManagement.Domain.DTO;
 
 namespace InventoryManagement.Infrastructure.Services
 {
@@ -18,7 +19,7 @@ namespace InventoryManagement.Infrastructure.Services
            validate inventory stock and update inventories
            raise an event to store actions
         */
-        public async Task<(EventStore, EventStore)> TransitInventory(TransferEvent transferEvent)
+        public async Task<(EventStoreDto, EventStoreDto)> TransitInventory(TransferEvent transferEvent)
         {
            var (sourceInventory, destinationInventory) = await GetInventories(transferEvent);
             if (sourceInventory != null && sourceInventory.Quantity > transferEvent.Quantity)
@@ -30,21 +31,21 @@ namespace InventoryManagement.Infrastructure.Services
             return (null, null);
         }
 
-        private async Task<(WarehouseInventory, WarehouseInventory)> GetInventories(TransferEvent transferEvent)
+        private async Task<(WarehouseInventoryDto, WarehouseInventoryDto)> GetInventories(TransferEvent transferEvent)
         {
             var sourceInventory = await _transitRepository.GetInventoryFromWarehouse(transferEvent.InventoryId, transferEvent.SourceWarehouseId);
             var destinationInventory = await _transitRepository.GetInventoryFromWarehouse(transferEvent.InventoryId, transferEvent.DestinationWarehouseId);
             return (sourceInventory, destinationInventory);
         }
 
-        private async Task UpdateInventories(WarehouseInventory sourceInventory, WarehouseInventory destinationInventory, TransferEvent transferEvent)
+        private async Task UpdateInventories(WarehouseInventoryDto sourceInventory, WarehouseInventoryDto destinationInventory, TransferEvent transferEvent)
         {
             sourceInventory.Quantity -= transferEvent.Quantity;
             await _transitRepository.UpdateWarehouseStocks(sourceInventory);
 
             if (destinationInventory == null)
             {
-                destinationInventory = new WarehouseInventory()
+                destinationInventory = new WarehouseInventoryDto()
                 {
                     WarehouseId = transferEvent.DestinationWarehouseId,
                     InventoryItemId = transferEvent.InventoryId,
@@ -59,7 +60,7 @@ namespace InventoryManagement.Infrastructure.Services
             }
         }
 
-        private async Task<(EventStore, EventStore)> RaiseTransferEvent(TransferEvent transferEvent)
+        private async Task<(EventStoreDto, EventStoreDto)> RaiseTransferEvent(TransferEvent transferEvent)
         {
             var reductionQuantity = $"- {transferEvent.Quantity}";
             var additionQuantity = $"+ {transferEvent.Quantity}";

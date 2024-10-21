@@ -1,8 +1,6 @@
 ﻿using InventoryManagement.Domain.DTO;
-using InventoryManagement.Domain.Entities;
 using InventoryManagement.Infrastructure.Repositories.Interfaces;
 using InventoryManagement.Infrastructure.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 namespace InventoryManagement.Infrastructure.Services
 {
@@ -19,27 +17,27 @@ namespace InventoryManagement.Infrastructure.Services
             return inventories;
         }
 
-        public async Task<InventoryItem> AddInventoryItemAsync(InventoryDto item, int warehouseId, int quantity)
+        public async Task<string> AddInventoryItemAsync(InventoryDto item, string warehouseId, int quantity)
         {
             return await _inventoryRepository.AddInventoryItemAsync(item, warehouseId, quantity);
         }
 
-        public async Task<InventoryItem> UpdateInventoryItemAsync(int id, InventoryDto itemDto)
+        public async Task<bool> UpdateInventoryItemAsync(string id, InventoryDto itemDto)
         {
             return await _inventoryRepository.UpdateInventoryItemAsync(id, itemDto);
         }
 
-        public async Task<bool> DeleteInventoryItemAsync(int id)
+        public async Task<bool> DeleteInventoryItemAsync(string id)
         {
             return await _inventoryRepository.DeleteInventoryItemAsync(id);
         }
 
-        public async Task<bool> UpdateInventoryQuantityAsync(int warehouseId, int inventoryItemId, int quantity)
+        public async Task<bool> UpdateInventoryQuantityAsync(string warehouseId, string inventoryItemId, int quantity)
         {
             return await _inventoryRepository.UpdateInventoryQuantityAsync(warehouseId, inventoryItemId, quantity);
         }
 
-        public async Task<List<WarehouseInventoryDto>> GetInventoryByWarehouseAsync(int warehouseId)
+        public async Task<List<WarehouseStockDto>> GetInventoryByWarehouseAsync(string warehouseId)
         {
             return await _inventoryRepository.GetInventoryByWarehouseAsync(warehouseId);
         }

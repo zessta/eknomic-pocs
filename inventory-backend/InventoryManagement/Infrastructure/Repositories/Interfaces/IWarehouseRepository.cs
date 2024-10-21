@@ -1,13 +1,12 @@
 ﻿using InventoryManagement.Domain.DTO;
-using InventoryManagement.Domain.Entities;
 
 namespace InventoryManagement.Infrastructure.Repositories.Interfaces
 {
     public interface IWarehouseRepository
     {
-        Task<IEnumerable<Warehouse>> GetAllWarehousesAsync();
-        Task<Warehouse> GetWarehouseByIdAsync(int id);
+        Task<IEnumerable<WarehouseDto>> GetAllWarehousesAsync();
+        Task<WarehouseDto> GetWarehouseByIdAsync(string id);
         Task AddWarehouseAsync(WarehouseDto warehouse);
-        Task DeleteWarehouseAsync(int id);
+        Task DeleteWarehouseAsync(string id);
     }
 }

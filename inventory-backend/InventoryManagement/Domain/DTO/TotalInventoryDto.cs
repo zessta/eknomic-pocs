@@ -2,7 +2,7 @@
 {
     public class TotalInventoryDto
     {
-        public int InventoryItemId { get; set; }
+        public string InventoryItemId { get; set; }
         public int TotalQuantity { get; set; }
     }
 

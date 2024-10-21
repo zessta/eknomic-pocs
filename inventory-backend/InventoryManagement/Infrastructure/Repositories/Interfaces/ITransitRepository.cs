@@ -1,13 +1,14 @@
-﻿using InventoryManagement.Domain.Entities;
+﻿using InventoryManagement.Domain.DTO;
+using InventoryManagement.Domain.Entities;
 using InventoryManagement.Domain.Enums;
 
 namespace InventoryManagement.Infrastructure.Repositories.Interfaces
 {
     public interface ITransitRepository
     {
-        public Task<WarehouseInventory> GetInventoryFromWarehouse(int inventoryId, int warehouseId);
-        public Task<bool> UpdateWarehouseStocks(WarehouseInventory inventory);
-        public Task<bool> AddWarehouseStocks(WarehouseInventory inventory);
-        public Task<EventStore> RaiseEvent<TEvent>(InventoryEvents eventType, TEvent eventData, int warehouseId);
+        public Task<WarehouseInventoryDto> GetInventoryFromWarehouse(string inventoryId, string warehouseId);
+        public Task<bool> UpdateWarehouseStocks(WarehouseInventoryDto inventory);
+        public Task<bool> AddWarehouseStocks(WarehouseInventoryDto inventory);
+        public Task<EventStoreDto> RaiseEvent<TEvent>(InventoryEvents eventType, TEvent eventData, string warehouseId);
     }
 }

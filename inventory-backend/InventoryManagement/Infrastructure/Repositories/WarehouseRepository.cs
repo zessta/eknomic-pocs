@@ -15,14 +15,25 @@ namespace InventoryManagement.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<Warehouse>> GetAllWarehousesAsync()
+        public async Task<IEnumerable<WarehouseDto>> GetAllWarehousesAsync()
         {
-            return await _context.Warehouses.ToListAsync();
+            return await _context.Warehouses.Select(x => new WarehouseDto
+            {
+              WarehouseId = x.WarehouseId.ToString(),
+              Location = x.Location,
+              ManagerId = x.ManagerId
+            }).ToListAsync();
         }
 
-        public async Task<Warehouse> GetWarehouseByIdAsync(int id)
+        public async Task<WarehouseDto> GetWarehouseByIdAsync(string id)
         {
-            return await _context.Warehouses.FirstOrDefaultAsync(w => w.WarehouseId == id);
+            var warehouse = await _context.Warehouses.FirstOrDefaultAsync(w => w.WarehouseId == int.Parse(id));
+            return new WarehouseDto
+            {
+                WarehouseId = warehouse.WarehouseId.ToString(),
+                Location = warehouse.Location,
+                ManagerId = warehouse.ManagerId
+            };
         }
 
         public async Task AddWarehouseAsync(WarehouseDto warehouse)
@@ -31,9 +42,9 @@ namespace InventoryManagement.Infrastructure.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeleteWarehouseAsync(int id)
+        public async Task DeleteWarehouseAsync(string id)
         {
-            var warehouse = await _context.Warehouses.FindAsync(id);
+            var warehouse = await _context.Warehouses.FindAsync(int.Parse(id));
             if (warehouse != null)
             {
                 _context.Warehouses.Remove(warehouse);

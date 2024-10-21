@@ -15,11 +15,11 @@ namespace InventoryManagement.Controllers
             _context = context;
         }
 
-        [HttpPost("create")]
-        public async Task CreateUser(User user)
-        {
-            await _context.Users.AddAsync(new User { Name = user.Name });
-            await _context.SaveChangesAsync();
-        }
+        //[HttpPost("create")]
+        //public async Task CreateUser(User user)
+        //{
+        //    await _context.Users.AddAsync(new User { Name = user.Name });
+        //    await _context.SaveChangesAsync();
+        //}
     }
 }

@@ -1,10 +1,10 @@
-﻿using InventoryManagement.Domain.Entities;
+﻿using InventoryManagement.Domain.DTO;
 using InventoryManagement.Domain.Events;
 
 namespace InventoryManagement.Infrastructure.Services.Interfaces
 {
     public interface ITransitService
     {
-        public Task<(EventStore, EventStore)> TransitInventory(TransferEvent transferEvent);
+        public Task<(EventStoreDto, EventStoreDto)> TransitInventory(TransferEvent transferEvent);
     }
 }

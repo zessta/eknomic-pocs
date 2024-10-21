@@ -2,9 +2,9 @@
 {
     public class TransferEvent
     {
-        public int SourceWarehouseId { get; set; }
-        public int DestinationWarehouseId { get; set; }
-        public int InventoryId { get; set; }
+        public string SourceWarehouseId { get; set; }
+        public string DestinationWarehouseId { get; set; }
+        public string InventoryId { get; set; }
         public int Quantity { get; set; }
     }
 }

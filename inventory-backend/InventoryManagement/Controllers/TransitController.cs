@@ -1,6 +1,5 @@
 ﻿using InventoryManagement.Domain.Events;
 using InventoryManagement.Infrastructure.Services.Interfaces;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InventoryManagement.Controllers

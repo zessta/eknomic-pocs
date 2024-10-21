@@ -19,11 +19,9 @@ namespace InventoryManagement.Domain.Entities
         [Required]
         public decimal Price { get; set; }
 
-        // Additional fields
         public string Features { get; set; }
         public string Details { get; set; }
 
-        // Relationships
         [Required]
         public int ItemClassificationId { get; set; }
         public virtual ItemClassification ItemClassification { get; set; }
