@@ -41,8 +41,8 @@ namespace InventoryManagement.Domain.Entities
         [Required]
         public int ExpiryDetailsId { get; set; }
         public virtual ExpiryDetails ExpiryDetails { get; set; }
-        [JsonIgnore]
 
+        [JsonIgnore]
         // Navigation property for related warehouses
         public ICollection<WarehouseInventory> WarehouseInventories { get; set; }
     }

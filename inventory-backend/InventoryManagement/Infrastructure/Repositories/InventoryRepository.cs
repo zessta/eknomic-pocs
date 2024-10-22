@@ -46,7 +46,6 @@ namespace InventoryManagement.Infrastructure.Repositories
 
         public async Task<string> AddInventoryItemAsync(InventoryDto item, string warehouseId, int quantity)
         {
-            // Creating new ItemClassification
             var itemClassification = new ItemClassification()
             {
                 Category = item.Category,
@@ -54,14 +53,12 @@ namespace InventoryManagement.Infrastructure.Repositories
                 Type = item.ClassificationType
             };
 
-            // Creating new Packaging
             var packaging = new Packaging()
             {
                 Type = item.PackagingType,
                 QuantityPerPackage = item.QuantityPerPackage
             };
 
-            // Creating new OriginDetails
             var originDetails = new OriginDetails()
             {
                 CountryOfOrigin = item.CountryOfOrigin,
@@ -71,7 +68,6 @@ namespace InventoryManagement.Infrastructure.Repositories
                 SupplierName = item.SupplierName
             };
 
-            // Creating new Dimensions
             var dimensions = new Dimensions()
             {
                 Height = item.Height,
@@ -80,14 +76,12 @@ namespace InventoryManagement.Infrastructure.Repositories
                 Width = item.Width
             };
 
-            // Creating new ExpiryDetails
             var expiryDetails = new ExpiryDetails()
             {
                 ExpiryDate = item.ExpiryDate,
                 ManufacturingDate = item.ManufacturingDate
             };
 
-            // Add new records to the context
             _context.ItemClassifications.Add(itemClassification);
             _context.Packagings.Add(packaging);
             _context.OriginDetails.Add(originDetails);
@@ -95,7 +89,6 @@ namespace InventoryManagement.Infrastructure.Repositories
             _context.ExpiryDetails.Add(expiryDetails);
             await _context.SaveChangesAsync();
 
-            // Creating new InventoryItem
             var inventoryItem = new InventoryItem()
             {
                 Brand = item.Brand,
@@ -110,11 +103,9 @@ namespace InventoryManagement.Infrastructure.Repositories
                 ExpiryDetailsId = expiryDetails.Id
             };
 
-            // Add InventoryItem to the context
             await _context.InventoryItems.AddAsync(inventoryItem);
             await _context.SaveChangesAsync();
 
-            // Associate InventoryItem with Warehouse
             var warehouseInventory = new WarehouseInventory()
             {
                 WarehouseId = int.Parse(warehouseId),
@@ -122,17 +113,21 @@ namespace InventoryManagement.Infrastructure.Repositories
                 Quantity = quantity
             };
 
-            // Add WarehouseInventory to the context
             await _context.WarehouseInventories.AddAsync(warehouseInventory);
             await _context.SaveChangesAsync();
             return inventoryItem.Id.ToString();
         }
 
-
-
         public async Task<bool> UpdateInventoryItemAsync(string id, InventoryDto itemDto)
         {
-            var inventoryItem = await _context.InventoryItems.FindAsync(id);
+            var inventoryItem = await _context.InventoryItems
+                .Include(i => i.ItemClassification)
+                .Include(i => i.Packaging)
+                .Include(i => i.OriginDetails)
+                .Include(i => i.Dimensions)
+                .Include(i => i.ExpiryDetails)
+                .FirstOrDefaultAsync(i => i.Id == int.Parse(id));
+
             if (inventoryItem == null) return false;
 
             inventoryItem.Name = itemDto.Name;
@@ -140,44 +135,45 @@ namespace InventoryManagement.Infrastructure.Repositories
             inventoryItem.Price = itemDto.Price;
             inventoryItem.Features = itemDto.Features;
             inventoryItem.Details = itemDto.Details;
-            inventoryItem.ItemClassification = new ItemClassification()
+
+            if (inventoryItem.ItemClassification != null)
             {
-                Id = inventoryItem.ItemClassification.Id,
-                Category = itemDto.Category,
-                Segment = itemDto.Segment,
-                Type = itemDto.ClassificationType
-            };
-            inventoryItem.Packaging = new Packaging()
+                inventoryItem.ItemClassification.Category = itemDto.Category;
+                inventoryItem.ItemClassification.Segment = itemDto.Segment;
+                inventoryItem.ItemClassification.Type = itemDto.ClassificationType;
+            }
+
+            if (inventoryItem.Packaging != null)
             {
-                Id = inventoryItem.Packaging.Id,
-                QuantityPerPackage = itemDto.QuantityPerPackage,
-                Type = itemDto.PackagingType
-            };
-            inventoryItem.OriginDetails = new OriginDetails()
+                inventoryItem.Packaging.QuantityPerPackage = itemDto.QuantityPerPackage;
+                inventoryItem.Packaging.Type = itemDto.PackagingType;
+            }
+
+            if (inventoryItem.OriginDetails != null)
             {
-                Id = inventoryItem.OriginDetails.Id,
-                CountryOfOrigin = itemDto.CountryOfOrigin,
-                ManufacturerDetails = itemDto.ManufacturerDetails,
-                ManufacturerName = itemDto.ManufacturerName,
-                SupplierContact = itemDto.SupplierContact,
-                SupplierName = itemDto.SupplierName
-            };
-            inventoryItem.Dimensions = new Dimensions()
+                inventoryItem.OriginDetails.CountryOfOrigin = itemDto.CountryOfOrigin;
+                inventoryItem.OriginDetails.ManufacturerDetails = itemDto.ManufacturerDetails;
+                inventoryItem.OriginDetails.ManufacturerName = itemDto.ManufacturerName;
+                inventoryItem.OriginDetails.SupplierContact = itemDto.SupplierContact;
+                inventoryItem.OriginDetails.SupplierName = itemDto.SupplierName;
+            }
+
+            if (inventoryItem.Dimensions != null)
             {
-                Id = inventoryItem.Dimensions.Id,
-                Height = itemDto.Height,
-                Width = itemDto.Width,
-                Length = itemDto.Length,
-                Weight = itemDto.Weight
-            };
-            inventoryItem.ExpiryDetails = new ExpiryDetails()
+                inventoryItem.Dimensions.Height = itemDto.Height;
+                inventoryItem.Dimensions.Width = itemDto.Width;
+                inventoryItem.Dimensions.Length = itemDto.Length;
+                inventoryItem.Dimensions.Weight = itemDto.Weight;
+            }
+
+            if (inventoryItem.ExpiryDetails != null)
             {
-                Id = inventoryItem.ExpiryDetails.Id,
-                ExpiryDate = itemDto.ExpiryDate,
-                ManufacturingDate = itemDto.ManufacturingDate
-            };
+                inventoryItem.ExpiryDetails.ExpiryDate = itemDto.ExpiryDate;
+                inventoryItem.ExpiryDetails.ManufacturingDate = itemDto.ManufacturingDate;
+            }
 
             await _context.SaveChangesAsync();
+
             return true;
         }
 

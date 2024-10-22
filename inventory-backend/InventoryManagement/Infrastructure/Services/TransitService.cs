@@ -15,10 +15,6 @@ namespace InventoryManagement.Infrastructure.Services
             _transitRepository = transitRepository;
         }
 
-        /* first get inventory details of both src & dst
-           validate inventory stock and update inventories
-           raise an event to store actions
-        */
         public async Task<(EventStoreDto, EventStoreDto)> TransitInventory(TransferEvent transferEvent)
         {
            var (sourceInventory, destinationInventory) = await GetInventories(transferEvent);

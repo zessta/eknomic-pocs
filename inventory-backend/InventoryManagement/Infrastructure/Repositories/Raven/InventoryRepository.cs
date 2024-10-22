@@ -19,104 +19,88 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
         {
             using var session = _context.AsyncSession;
             
-                // Create new ItemClassification document
-                var itemClassification = new ItemClassification()
-                {
-                    Category = itemDto.Category,
-                    Segment = itemDto.Segment,
-                    Type = itemDto.ClassificationType
-                };
-                await session.StoreAsync(itemClassification);
-
-                // Create new Packaging document
-                var packaging = new Packaging()
-                {
-                    Type = itemDto.PackagingType,
-                    QuantityPerPackage = itemDto.QuantityPerPackage
-                };
-                await session.StoreAsync(packaging);
-
-                // Create new OriginDetails document
-                var originDetails = new OriginDetails()
-                {
-                    CountryOfOrigin = itemDto.CountryOfOrigin,
-                    ManufacturerDetails = itemDto.ManufacturerDetails,
-                    ManufacturerName = itemDto.ManufacturerName,
-                    SupplierContact = itemDto.SupplierContact,
-                    SupplierName = itemDto.SupplierName
-                };
-                await session.StoreAsync(originDetails);
-
-                // Create new Dimensions document
-                var dimensions = new Dimensions()
-                {
-                    Height = itemDto.Height,
-                    Length = itemDto.Length,
-                    Weight = itemDto.Weight,
-                    Width = itemDto.Width
-                };
-                await session.StoreAsync(dimensions);
-
-                // Create new ExpiryDetails document
-                var expiryDetails = new ExpiryDetails()
-                {
-                    ExpiryDate = itemDto.ExpiryDate,
-                    ManufacturingDate = itemDto.ManufacturingDate
-                };
-                await session.StoreAsync(expiryDetails);
-
-                // Save all the above documents to get their IDs
-                await session.SaveChangesAsync();
-
-                // Create new InventoryItem with reference IDs
-                var inventoryItem = new InventoryItem()
-                {
-                    Brand = itemDto.Brand,
-                    Name = itemDto.Name,
-                    Price = itemDto.Price,
-                    Features = itemDto.Features,
-                    Details = itemDto.Details,
-                    ItemClassificationId = itemClassification.Id,
-                    PackagingId = packaging.Id,
-                    OriginDetailsId = originDetails.Id,
-                    DimensionsId = dimensions.Id,
-                    ExpiryDetailsId = expiryDetails.Id
-                };
-                await session.StoreAsync(inventoryItem);
-
-                // Save InventoryItem and get its ID
-                await session.SaveChangesAsync();
-
-                // Associate InventoryItem with Warehouse
-                var warehouseInventory = new WarehouseInventory()
-                {
-                    WarehouseId = warehouseId,
-                    InventoryItemId = inventoryItem.Id,
-                    Quantity = quantity
-                };
-                await session.StoreAsync(warehouseInventory);
-
-                // Save the warehouse association
-                await session.SaveChangesAsync();
-
-                return inventoryItem.Id;
-            
+            var itemClassification = new ItemClassification()
+            {
+                Category = itemDto.Category,
+                Segment = itemDto.Segment,
+                Type = itemDto.ClassificationType
+            };
+            await session.StoreAsync(itemClassification);
+         
+            var packaging = new Packaging()
+            {
+                Type = itemDto.PackagingType,
+                QuantityPerPackage = itemDto.QuantityPerPackage
+            };
+            await session.StoreAsync(packaging);
+         
+            var originDetails = new OriginDetails()
+            {
+                CountryOfOrigin = itemDto.CountryOfOrigin,
+                ManufacturerDetails = itemDto.ManufacturerDetails,
+                ManufacturerName = itemDto.ManufacturerName,
+                SupplierContact = itemDto.SupplierContact,
+                SupplierName = itemDto.SupplierName
+            };
+            await session.StoreAsync(originDetails);
+         
+            var dimensions = new Dimensions()
+            {
+                Height = itemDto.Height,
+                Length = itemDto.Length,
+                Weight = itemDto.Weight,
+                Width = itemDto.Width
+            };
+            await session.StoreAsync(dimensions);
+         
+            var expiryDetails = new ExpiryDetails()
+            {
+                ExpiryDate = itemDto.ExpiryDate,
+                ManufacturingDate = itemDto.ManufacturingDate
+            };
+            await session.StoreAsync(expiryDetails);
+         
+            // Save all the above documents to get their IDs
+            await session.SaveChangesAsync();
+         
+            // Create new InventoryItem with reference IDs
+            var inventoryItem = new InventoryItem()
+            {
+                Brand = itemDto.Brand,
+                Name = itemDto.Name,
+                Price = itemDto.Price,
+                Features = itemDto.Features,
+                Details = itemDto.Details,
+                ItemClassificationId = itemClassification.Id,
+                PackagingId = packaging.Id,
+                OriginDetailsId = originDetails.Id,
+                DimensionsId = dimensions.Id,
+                ExpiryDetailsId = expiryDetails.Id
+            };
+            await session.StoreAsync(inventoryItem);
+            await session.SaveChangesAsync();
+         
+            var warehouseInventory = new WarehouseInventory()
+            {
+                WarehouseId = warehouseId,
+                InventoryItemId = inventoryItem.Id,
+                Quantity = quantity
+            };
+            await session.StoreAsync(warehouseInventory);
+            await session.SaveChangesAsync();
+         
+            return inventoryItem.Id;
         }
 
         public async Task<bool> DeleteInventoryItemAsync(string id)
         {
             using var session = _context.AsyncSession;
-            // Load the InventoryItem by its ID
             var inventoryItem = await session.LoadAsync<InventoryItem>(id);
             if (inventoryItem == null)
             {
                 return false;
             }
-
-            // Remove the InventoryItem by deleting it from the session
             session.Delete(inventoryItem);
-
-            // Save the changes to apply the deletion
             await session.SaveChangesAsync();
             return true;
         }
@@ -165,8 +149,6 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
                     ExpiryDate = Exp.ExpiryDate
                 };
             }).ToList();
-
-
             return inventories;
         }
 
@@ -181,7 +163,20 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
             return warehouseInventory.Select(wi =>
             {
                 var wh = session.Load<Warehouse>(wi.WarehouseId.ToString());
-                var inv = session.Load<InventoryItem>(wi.InventoryItemId.ToString());
+                var inv = session.Query<InventoryItem>().Where(x => x.Id == wi.InventoryItemId.ToString())
+                .Include(p => p.ItemClassificationId)
+                .Include(p => p.PackagingId)
+                .Include(p => p.OriginDetailsId)
+                .Include(p => p.DimensionsId)
+                .Include(p => p.ExpiryDetailsId)
+                .FirstOrDefault();
+
+                var IC = session.Load<ItemClassification>(inv.ItemClassificationId);
+                var Pkg = session.Load<Packaging>(inv.PackagingId);
+                var OrgD = session.Load<OriginDetails>(inv.OriginDetailsId);
+                var Dmn = session.Load<Dimensions>(inv.DimensionsId);
+                var Exp = session.Load<ExpiryDetails>(inv.ExpiryDetailsId);
+
                 return new WarehouseStockDto
                 {
                     WarehouseInventoryId = wi.Id,
@@ -192,23 +187,23 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
                         Name = inv.Name,
                         Price = inv.Price,
                         Features = inv.Features,
-                        Details = inv.Details
-                        //Segment = wi.InventoryItem.ItemClassification.Segment,
-                        //Category = wi.InventoryItem.ItemClassification.Category,
-                        //ClassificationType = wi.InventoryItem.ItemClassification.Type,
-                        //Height = wi.InventoryItem.Dimensions.Height,
-                        //Width = wi.InventoryItem.Dimensions.Width,
-                        //Length = wi.InventoryItem.Dimensions.Length,
-                        //Weight = wi.InventoryItem.Dimensions.Weight,
-                        //PackagingType = wi.InventoryItem.Packaging.Type,
-                        //QuantityPerPackage = wi.InventoryItem.Packaging.QuantityPerPackage,
-                        //CountryOfOrigin = wi.InventoryItem.OriginDetails.CountryOfOrigin,
-                        //ManufacturerName = wi.InventoryItem.OriginDetails.ManufacturerName,
-                        //ManufacturerDetails = wi.InventoryItem.OriginDetails.ManufacturerDetails,
-                        //SupplierName = wi.InventoryItem.OriginDetails.SupplierName,
-                        //SupplierContact = wi.InventoryItem.OriginDetails.SupplierContact,
-                        //ManufacturingDate = wi.InventoryItem.ExpiryDetails.ManufacturingDate,
-                        //ExpiryDate = wi.InventoryItem.ExpiryDetails.ExpiryDate
+                        Details = inv.Details,
+                        Segment = IC.Segment,
+                        Category = IC.Category,
+                        ClassificationType = IC.Type,
+                        Height = Dmn.Height,
+                        Width = Dmn.Width,
+                        Length = Dmn.Length,
+                        Weight = Dmn.Weight,
+                        PackagingType = Pkg.Type,
+                        QuantityPerPackage = Pkg.QuantityPerPackage,
+                        CountryOfOrigin = OrgD.CountryOfOrigin,
+                        ManufacturerName = OrgD.ManufacturerName,
+                        ManufacturerDetails = OrgD.ManufacturerDetails,
+                        SupplierName = OrgD.SupplierName,
+                        SupplierContact = OrgD.SupplierContact,
+                        ManufacturingDate = Exp.ManufacturingDate,
+                        ExpiryDate = Exp.ExpiryDate
                     },
                     Quantity = wi.Quantity
                 };
@@ -239,105 +234,92 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
         public async Task<bool> UpdateInventoryItemAsync(string id, InventoryDto itemDto)
         {
             using var session = _context.AsyncSession;
+
             var inventory = await session.LoadAsync<InventoryItem>(id);
-            var inventoryItem = new InventoryItem
-            {
-                Id = id,
-                Name = itemDto.Name,
-                Brand = itemDto.Brand,
-                Price = itemDto.Price,
-                Features = itemDto.Features,
-                Details = itemDto.Details,
-                ItemClassificationId = inventory.ItemClassificationId,
-                PackagingId = inventory.PackagingId,
-                OriginDetailsId = inventory.OriginDetailsId,
-                DimensionsId = inventory.DimensionsId,
-                ExpiryDetailsId = inventory.ExpiryDetailsId
-            };
 
-            // Store the new InventoryItem object (this will update the existing document)
-            await session.StoreAsync(inventoryItem);
+            inventory.Name = itemDto.Name;
+            inventory.Brand = itemDto.Brand;
+            inventory.Price = itemDto.Price;
+            inventory.Features = itemDto.Features;
+            inventory.Details = itemDto.Details;
 
-            // Update related entities in a similar manner
             if (!string.IsNullOrEmpty(inventory.ItemClassificationId))
             {
-                await session.StoreAsync(new ItemClassification
+                var itemClassification = await session.LoadAsync<ItemClassification>(inventory.ItemClassificationId);
+                if (itemClassification != null)
                 {
-                    Id = inventory.ItemClassificationId,
-                    Category = itemDto.Category,
-                    Segment = itemDto.Segment,
-                    Type = itemDto.ClassificationType
-                });
+                    itemClassification.Category = itemDto.Category;
+                    itemClassification.Segment = itemDto.Segment;
+                    itemClassification.Type = itemDto.ClassificationType;
+                }
             }
 
             if (!string.IsNullOrEmpty(inventory.PackagingId))
             {
-                await session.StoreAsync(new Packaging
+                var packaging = await session.LoadAsync<Packaging>(inventory.PackagingId);
+                if (packaging != null)
                 {
-                    Id = inventory.PackagingId,
-                    QuantityPerPackage = itemDto.QuantityPerPackage,
-                    Type = itemDto.PackagingType
-                });
+                    packaging.QuantityPerPackage = itemDto.QuantityPerPackage;
+                    packaging.Type = itemDto.PackagingType;
+                }
             }
 
             if (!string.IsNullOrEmpty(inventory.OriginDetailsId))
             {
-                await session.StoreAsync(new OriginDetails
+                var originDetails = await session.LoadAsync<OriginDetails>(inventory.OriginDetailsId);
+                if (originDetails != null)
                 {
-                    Id = inventory.OriginDetailsId,
-                    CountryOfOrigin = itemDto.CountryOfOrigin,
-                    ManufacturerDetails = itemDto.ManufacturerDetails,
-                    ManufacturerName = itemDto.ManufacturerName,
-                    SupplierContact = itemDto.SupplierContact,
-                    SupplierName = itemDto.SupplierName
-                });
+                    originDetails.CountryOfOrigin = itemDto.CountryOfOrigin;
+                    originDetails.ManufacturerDetails = itemDto.ManufacturerDetails;
+                    originDetails.ManufacturerName = itemDto.ManufacturerName;
+                    originDetails.SupplierContact = itemDto.SupplierContact;
+                    originDetails.SupplierName = itemDto.SupplierName;
+                }
             }
 
             if (!string.IsNullOrEmpty(inventory.DimensionsId))
             {
-                await session.StoreAsync(new Dimensions
+                var dimensions = await session.LoadAsync<Dimensions>(inventory.DimensionsId);
+                if (dimensions != null)
                 {
-                    Id = inventory.DimensionsId,
-                    Height = itemDto.Height,
-                    Width = itemDto.Width,
-                    Length = itemDto.Length,
-                    Weight = itemDto.Weight
-                });
+                    dimensions.Height = itemDto.Height;
+                    dimensions.Width = itemDto.Width;
+                    dimensions.Length = itemDto.Length;
+                    dimensions.Weight = itemDto.Weight;
+                }
             }
 
             if (!string.IsNullOrEmpty(inventory.ExpiryDetailsId))
             {
-                await session.StoreAsync(new ExpiryDetails
+                var expiryDetails = await session.LoadAsync<ExpiryDetails>(inventory.ExpiryDetailsId);
+                if (expiryDetails != null)
                 {
-                    Id = inventory.ExpiryDetailsId,
-                    ExpiryDate = itemDto.ExpiryDate,
-                    ManufacturingDate = itemDto.ManufacturingDate
-                });
+                    expiryDetails.ExpiryDate = itemDto.ExpiryDate;
+                    expiryDetails.ManufacturingDate = itemDto.ManufacturingDate;
+                }
             }
 
             // Save all changes to the session
             await session.SaveChangesAsync();
             return true;
+
         }
 
         public async Task<bool> UpdateInventoryQuantityAsync(string warehouseId, string inventoryItemId, int quantity)
         {
             using var session = _context.AsyncSession;
-            // Query to find the WarehouseInventory document by WarehouseId and InventoryItemId
+            
             var warehouseInventory = await session
                 .Query<WarehouseInventory>()
                 .FirstOrDefaultAsync(wi => wi.WarehouseId == warehouseId && wi.InventoryItemId == inventoryItemId);
 
-            // If no document is found, return false
             if (warehouseInventory == null)
             {
                 return false;
             }
 
-            // Update the quantity
             warehouseInventory.Quantity = quantity;
 
-            // Save the changes back to RavenDB
             await session.SaveChangesAsync();
 
             return true;

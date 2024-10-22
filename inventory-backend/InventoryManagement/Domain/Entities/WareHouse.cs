@@ -19,10 +19,6 @@ namespace InventoryManagement.Domain.Entities
         [JsonIgnore]
         [ForeignKey("ManagerId")]
         public User Users { get; set; }
-
-
-        //[MaxLength(255)]
-        //public string Manager { get; set; }
     }
 }
     

@@ -23,18 +23,18 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
                 ManagerId = warehouse.ManagerId
             };
 
-            await session.StoreAsync(newWarehouse); // Store the new document
-            await session.SaveChangesAsync(); // Commit the changes
+            await session.StoreAsync(newWarehouse);
+            await session.SaveChangesAsync();
         }
 
         public async Task DeleteWarehouseAsync(string id)
         {
             using var session = _context.AsyncSession;
-            var warehouse = await session.LoadAsync<Warehouse>(id); // Load by ID
+            var warehouse = await session.LoadAsync<Warehouse>(id);
             if (warehouse != null)
             {
-                session.Delete(warehouse); // Mark the document for deletion
-                await session.SaveChangesAsync(); // Commit the changes
+                session.Delete(warehouse);
+                await session.SaveChangesAsync();
             }
         }
 
@@ -44,7 +44,7 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
             return await session.Query<Warehouse>()
             .Select(x => new WarehouseDto
             {
-                WarehouseId = x.Id, // RavenDB automatically generates an Id for each document
+                WarehouseId = x.Id,
                 Location = x.Location,
                 ManagerId = x.ManagerId
             })
@@ -54,7 +54,7 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
         public async Task<WarehouseDto> GetWarehouseByIdAsync(string id)
         {
             using var session = _context.AsyncSession;
-            var warehouse = await session.LoadAsync<Warehouse>(id); // Load by ID
+            var warehouse = await session.LoadAsync<Warehouse>(id);
 
             return new WarehouseDto
             {

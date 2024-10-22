@@ -24,8 +24,8 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
                 Quantity = inventory.Quantity
             };
 
-            await session.StoreAsync(newWarehouseInventory); // Store the new document
-            await session.SaveChangesAsync(); // Save changes
+            await session.StoreAsync(newWarehouseInventory);
+            await session.SaveChangesAsync();
             return true;
         }
 
@@ -53,15 +53,16 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
             var eventDetails = new EventStore
             {
                 EventType = eventType,
-                EventData = eventData?.ToString(), // You might want to serialize this to JSON if necessary
-                WarehouseId = warehouseId // IDs in RavenDB are string-based
+                EventData = eventData?.ToString(),
+                WarehouseId = warehouseId
             };
 
-            await session.StoreAsync(eventDetails); // Store the event
-            await session.SaveChangesAsync(); // Commit the changes
+            await session.StoreAsync(eventDetails);
+            await session.SaveChangesAsync();
 
             return new EventStoreDto
             {
+                EventId = eventDetails.EventId,
                 EventType = eventType,
                 EventData = eventData?.ToString(),
                 WarehouseId = warehouseId
@@ -74,14 +75,13 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
             var warehouseInventory = await session.LoadAsync<WarehouseInventory>(inventory.WarehouseInventoryId);
 
             if (warehouseInventory == null)
-                return false; // Inventory not found
+                return false;
 
-            // Update fields
             warehouseInventory.WarehouseId = inventory.WarehouseId;
             warehouseInventory.InventoryItemId = inventory.InventoryItemId;
             warehouseInventory.Quantity = inventory.Quantity;
 
-            await session.SaveChangesAsync(); // Save the changes
+            await session.SaveChangesAsync();
             return true;
         }
     }

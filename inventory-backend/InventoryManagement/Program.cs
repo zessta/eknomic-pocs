@@ -1,23 +1,22 @@
 using InventoryManagement.Infrastructure.Data;
 using InventoryManagement.Infrastructure.Data.Raven;
-using InventoryManagement.Infrastructure.Repositories;
-//using InventoryManagement.Infrastructure.Repositories.Raven;
-
 using InventoryManagement.Infrastructure.Repositories.Interfaces;
 using InventoryManagement.Infrastructure.Services;
 using InventoryManagement.Infrastructure.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Raven.Client.Documents;
-using System;
+
+//toggle these dependencies for database change
+using InventoryManagement.Infrastructure.Repositories;
+//using InventoryManagement.Infrastructure.Repositories.Raven;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
 builder.Services.AddControllers();
 
-//postgresql configuration
+//Postgresql configuration
 builder.Services.AddDbContext<InventoryDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("InventoryConnection")));
 
 //RavenDB Document Store configuration
