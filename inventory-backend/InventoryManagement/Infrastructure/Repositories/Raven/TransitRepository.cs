@@ -1,9 +1,8 @@
 ﻿using InventoryManagement.Domain.DTO;
-using InventoryManagement.Domain.Enums;
 using InventoryManagement.Domain.Raven.Entities;
 using InventoryManagement.Infrastructure.Data.Raven;
 using InventoryManagement.Infrastructure.Repositories.Interfaces;
-using Microsoft.EntityFrameworkCore;
+using Raven.Client.Documents;
 
 namespace InventoryManagement.Infrastructure.Repositories.Raven
 {

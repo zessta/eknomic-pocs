@@ -318,7 +318,7 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
                 return false;
             }
 
-            warehouseInventory.Quantity = quantity;
+            warehouseInventory.Quantity += quantity;
 
             await session.SaveChangesAsync();
 

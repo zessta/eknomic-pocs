@@ -29,7 +29,7 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
 
             return new EventStoreDto
             {
-                EventId = eventDetails.EventId,
+                EventId = eventDetails.Id,
                 EventType = eventType,
                 EventData = eventData?.ToString(),
                 WarehouseId = warehouseId
