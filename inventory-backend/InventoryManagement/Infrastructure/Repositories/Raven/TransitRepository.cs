@@ -47,28 +47,6 @@ namespace InventoryManagement.Infrastructure.Repositories.Raven
             };
         }
 
-        public async Task<EventStoreDto> RaiseEvent<TEvent>(InventoryEvents eventType, TEvent eventData, string warehouseId)
-        {
-            using var session = _context.AsyncSession;
-            var eventDetails = new EventStore
-            {
-                EventType = eventType,
-                EventData = eventData?.ToString(),
-                WarehouseId = warehouseId
-            };
-
-            await session.StoreAsync(eventDetails);
-            await session.SaveChangesAsync();
-
-            return new EventStoreDto
-            {
-                EventId = eventDetails.EventId,
-                EventType = eventType,
-                EventData = eventData?.ToString(),
-                WarehouseId = warehouseId
-            };
-        }
-
         public async Task<bool> UpdateWarehouseStocks(WarehouseInventoryDto inventory)
         {
             using var session = _context.AsyncSession;

@@ -195,7 +195,7 @@ namespace InventoryManagement.Infrastructure.Repositories
 
             if (warehouseInventory == null) return false;
 
-            warehouseInventory.Quantity = quantity;
+            warehouseInventory.Quantity += quantity;
             await _context.SaveChangesAsync();
 
             return true;

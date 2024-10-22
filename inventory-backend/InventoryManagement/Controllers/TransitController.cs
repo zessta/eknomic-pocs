@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace InventoryManagement.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/transit")]
     [ApiController]
     public class TransitController : ControllerBase
     {

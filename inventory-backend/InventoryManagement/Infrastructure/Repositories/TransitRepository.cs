@@ -68,25 +68,5 @@ namespace InventoryManagement.Infrastructure.Repositories
                 return false;
             }
         }
-
-        public async Task<EventStoreDto> RaiseEvent<TEvent>(InventoryEvents eventType, TEvent eventData, string warehouseId)
-        {
-            var eventDetails = new EventStore()
-            {
-                EventType = eventType,
-                EventData = eventData?.ToString(),
-                WarehouseId = int.Parse(warehouseId)
-            };
-
-            await _context.EventStore.AddAsync(eventDetails);
-            await _context.SaveChangesAsync();
-            return new EventStoreDto
-            {
-                EventId = eventDetails.EventId.ToString(),
-                EventType = eventType,
-                EventData = eventData?.ToString(),
-                WarehouseId = warehouseId
-            };
-        }
     }
 }

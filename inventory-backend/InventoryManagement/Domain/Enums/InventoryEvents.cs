@@ -2,8 +2,10 @@
 {
     public enum InventoryEvents
     {
-        Transfer,
-        Addition,
-        Reduction
+        StockAdded,
+        StockRemoved,
+        Transfer_In,
+        Transfer_Out,
+        NewStockAdded
     }
 }

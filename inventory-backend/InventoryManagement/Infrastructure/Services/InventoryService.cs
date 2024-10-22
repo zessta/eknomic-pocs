@@ -1,4 +1,5 @@
 ﻿using InventoryManagement.Domain.DTO;
+using InventoryManagement.Domain.Enums;
 using InventoryManagement.Infrastructure.Repositories.Interfaces;
 using InventoryManagement.Infrastructure.Services.Interfaces;
 
@@ -7,9 +8,11 @@ namespace InventoryManagement.Infrastructure.Services
     public class InventoryService : IInventoryService
     {
         private readonly IInventoryRepository _inventoryRepository;
-        public InventoryService(IInventoryRepository inventoryRepository)
+        private readonly IEventRepository _eventRepository;
+        public InventoryService(IInventoryRepository inventoryRepository,IEventRepository eventRepository)
         {
             _inventoryRepository = inventoryRepository;
+            _eventRepository = eventRepository;
         }
         public async Task<List<InventoryDto>> GetAllSKU()
         {
@@ -19,7 +22,9 @@ namespace InventoryManagement.Infrastructure.Services
 
         public async Task<string> AddInventoryItemAsync(InventoryDto item, string warehouseId, int quantity)
         {
-            return await _inventoryRepository.AddInventoryItemAsync(item, warehouseId, quantity);
+            var inventoryId = await _inventoryRepository.AddInventoryItemAsync(item, warehouseId, quantity);
+            await _eventRepository.RaiseEvent(InventoryEvents.NewStockAdded, inventoryId, warehouseId);
+            return inventoryId;
         }
 
         public async Task<bool> UpdateInventoryItemAsync(string id, InventoryDto itemDto)
@@ -34,7 +39,9 @@ namespace InventoryManagement.Infrastructure.Services
 
         public async Task<bool> UpdateInventoryQuantityAsync(string warehouseId, string inventoryItemId, int quantity)
         {
-            return await _inventoryRepository.UpdateInventoryQuantityAsync(warehouseId, inventoryItemId, quantity);
+            var status = await _inventoryRepository.UpdateInventoryQuantityAsync(warehouseId, inventoryItemId, quantity);
+            await _eventRepository.RaiseEvent(InventoryEvents.StockAdded, quantity, warehouseId);
+            return status;
         }
 
         public async Task<List<WarehouseStockDto>> GetInventoryByWarehouseAsync(string warehouseId)

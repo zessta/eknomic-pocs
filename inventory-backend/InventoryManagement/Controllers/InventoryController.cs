@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace InventoryManagement.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/inventory")]
     [ApiController]
     [UriParserAttribute]
     public class InventoryController : ControllerBase
@@ -17,14 +17,14 @@ namespace InventoryManagement.Controllers
             _inventoryService = inventoryService;
         }
 
-        [HttpGet("sku")]
+        [HttpGet]
         public async Task<IActionResult> GetAllInventoryItems()
         {
             var items = await _inventoryService.GetAllSKU();
             return Ok(items);
         }
 
-        [HttpPost]
+        [HttpPost("newstock")]
         public async Task<IActionResult> AddInventoryItem([FromBody] InventoryDto itemDto, string warehouseId, int quantity)
         {
             var item = await _inventoryService.AddInventoryItemAsync(itemDto, warehouseId, quantity);
@@ -34,7 +34,7 @@ namespace InventoryManagement.Controllers
             return Ok(item);
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("update/{id}")]
         public async Task<IActionResult> UpdateInventoryItem(string id, [FromBody] InventoryDto itemDto)
         {
             var item = await _inventoryService.UpdateInventoryItemAsync(id, itemDto);
@@ -44,7 +44,7 @@ namespace InventoryManagement.Controllers
             return Ok(item);
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("remove/{id}")]
         public async Task<IActionResult> DeleteInventoryItem(string id)
         {
             var success = await _inventoryService.DeleteInventoryItemAsync(id);
@@ -54,7 +54,7 @@ namespace InventoryManagement.Controllers
             return NoContent();
         }
 
-        [HttpPut("{warehouseId}/inventoryitem/{inventoryItemId}")]
+        [HttpPut("stock/increase/{warehouseId}/{inventoryItemId}")]
         public async Task<IActionResult> UpdateInventoryQuantity(string warehouseId, string inventoryItemId, [FromBody] int quantity)
         {
             var success = await _inventoryService.UpdateInventoryQuantityAsync(warehouseId, inventoryItemId, quantity);
@@ -64,14 +64,14 @@ namespace InventoryManagement.Controllers
             return NoContent();
         }
 
-        [HttpGet("{warehouseId}/inventoryitems")]
+        [HttpGet("warehouse/stock/{warehouseId}")]
         public async Task<IActionResult> GetInventoryByWarehouse(string warehouseId)
         {
             var items = await _inventoryService.GetInventoryByWarehouseAsync(warehouseId);
             return Ok(items);
         }
 
-        [HttpGet("total")]
+        [HttpGet("stock/total")]
         public async Task<IActionResult> GetTotalInventory()
         {
             var totalInventory = await _inventoryService.GetTotalInventoryAsync();

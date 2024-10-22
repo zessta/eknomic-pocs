@@ -10,9 +10,11 @@ namespace InventoryManagement.Infrastructure.Services
     public class TransitService : ITransitService
     {
         private readonly ITransitRepository _transitRepository;
-        public TransitService(ITransitRepository transitRepository)
+        private readonly IEventRepository _eventRepository;
+        public TransitService(ITransitRepository transitRepository, IEventRepository eventRepository)
         {
             _transitRepository = transitRepository;
+            _eventRepository = eventRepository;
         }
 
         public async Task<(EventStoreDto, EventStoreDto)> TransitInventory(TransferEvent transferEvent)
@@ -60,8 +62,8 @@ namespace InventoryManagement.Infrastructure.Services
         {
             var reductionQuantity = $"- {transferEvent.Quantity}";
             var additionQuantity = $"+ {transferEvent.Quantity}";
-            var reductionEvent = await _transitRepository.RaiseEvent(InventoryEvents.Reduction, reductionQuantity, transferEvent.SourceWarehouseId);
-            var additionEvent = await _transitRepository.RaiseEvent(InventoryEvents.Addition, additionQuantity, transferEvent.DestinationWarehouseId);
+            var reductionEvent = await _eventRepository.RaiseEvent(InventoryEvents.Transfer_Out, reductionQuantity, transferEvent.SourceWarehouseId);
+            var additionEvent = await _eventRepository.RaiseEvent(InventoryEvents.Transfer_In, additionQuantity, transferEvent.DestinationWarehouseId);
             return (additionEvent, reductionEvent);
         }
     }

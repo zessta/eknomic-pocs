@@ -9,6 +9,5 @@ namespace InventoryManagement.Infrastructure.Repositories.Interfaces
         public Task<WarehouseInventoryDto> GetInventoryFromWarehouse(string inventoryId, string warehouseId);
         public Task<bool> UpdateWarehouseStocks(WarehouseInventoryDto inventory);
         public Task<bool> AddWarehouseStocks(WarehouseInventoryDto inventory);
-        public Task<EventStoreDto> RaiseEvent<TEvent>(InventoryEvents eventType, TEvent eventData, string warehouseId);
     }
 }

@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace InventoryManagement.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/warehouse")]
     [ApiController]
     [UriParserAttribute]
     public class WarehouseController : ControllerBase
@@ -27,14 +27,14 @@ namespace InventoryManagement.Controllers
             return Ok(warehouses);
         }
 
-        [HttpPost]
+        [HttpPost("new")]
         public async Task<IActionResult> AddWarehouse(WarehouseDto warehouse)
         {
             await _warehouseRepository.AddWarehouseAsync(warehouse);
             return Ok(warehouse);
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("remove/{id}")]
         public async Task<IActionResult> DeleteWarehouse(string id)
         {
             var warehouse = await _warehouseRepository.GetWarehouseByIdAsync(id);
