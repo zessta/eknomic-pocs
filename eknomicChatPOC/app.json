@@ -20,7 +20,10 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.shivazessta.eknomicChatPOC"
+      "package": "com.shivazessta.eknomicChatPOC",
+      "permissions": [
+        "android.permission.NOTIFICATIONS"
+      ]
     },
     "web": {
       "bundler": "metro",
