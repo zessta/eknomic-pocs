@@ -4,7 +4,7 @@ import { database } from '../components/firebaseConfig';
 import { ref, onValue, push } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, TouchableWithoutFeedback, Keyboard, Text } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import SummaryWidget from '../components/SummaryWidget';
@@ -12,6 +12,10 @@ import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import ReplyMessageBar from '../components/ReplyMessageBar';
 import * as Clipboard from 'expo-clipboard';
 import { TextInput } from 'react-native-paper';
+import * as Notifications from 'expo-notifications';
+import * as Permissions from 'expo-permissions';
+import * as BackgroundFetch from 'expo-background-fetch';
+import '../components/BackgroundFetch'; // Ensure the task is defined
 
 const customInputToolbar = (props: any) => {
   return (
@@ -46,37 +50,84 @@ const customInputToolbar = (props: any) => {
 
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
+  useEffect(() => {
+    const registerBackgroundFetch = async () => {
+      try {
+        const test = await BackgroundFetch.registerTaskAsync('background-fetch-task', {
+          minimumInterval: 0.5 * 60, // 15 minutes
+          stopOnTerminate: false, // Android only
+          startOnBoot: true, // Android only
+        });
 
+        console.log('Background fetch registered!', test);
+      } catch (error) {
+        console.error('Failed to register background fetch:', error);
+      }
+    };
+
+    registerBackgroundFetch();
+  }, []);
   const { receiverUserId, receiverUserName, senderUserName, senderUserId } = useLocalSearchParams();
-  
+
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [pendingMessages, setPendingMessages] = useState<IMessage[]>([]);
   const [isConnected, setIsConnected] = useState<boolean>(true);
   const [showSummary, setShowSummary] = useState<boolean>(false);
   const [iconPosition] = useState(new Animated.ValueXY({ x: 100, y: 100 }));
   const [replyMessage, setReplyMessage] = useState<IMessage | null>(null);
-  
+
   const clearReplyMessage = () => setReplyMessage(null);
 
   const loadMessages = () => {
     const senderMessagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
     const receiverMessagesRef = ref(database, `chats/${receiverUserId}_${senderUserId}`);
-   
+
     onValue(senderMessagesRef, snapshot => {
       const senderMessages: IMessage[] = snapshot.val() ? Object.values(snapshot.val()) : [];
       onValue(receiverMessagesRef, snapshot => {
         const receiverMessages: IMessage[] = snapshot.val() ? Object.values(snapshot.val()) : [];
-     const allMessages: IMessage[] = [...senderMessages.reverse(), ...receiverMessages.reverse()].map(msg => ({
-    ...msg,
-    createdAt: new Date(msg.createdAt).getTime(), // Ensure createdAt is a timestamp
-  })).sort((a, b) => a.createdAt - b.createdAt);
+        const allMessages: IMessage[] = [...senderMessages.reverse(), ...receiverMessages.reverse()].map(msg => ({
+          ...msg,
+          createdAt: new Date(msg.createdAt).getTime(), // Ensure createdAt is a timestamp
+        })).sort((a, b) => a.createdAt - b.createdAt);
 
-  
-  setMessages(allMessages);
-  saveDBMessages(allMessages);
+        // Check for unread messages and show notification
+        const newMessages = allMessages.filter(msg => !messages.some(existingMsg => existingMsg._id === msg._id));
+        if (newMessages.length > 0) {
+          showNotification(newMessages);
+        }
+
+        setMessages(allMessages);
+        saveDBMessages(allMessages);
       });
     });
   };
+
+  const showNotification = async (newMessages: IMessage[]) => {
+    console.log('coming here')
+    const notificationMessage = newMessages.length === 1
+      ? `New message from ${newMessages[0].user.name}: ${newMessages[0].text}`
+      : `You have ${newMessages.length} new messages.`;
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "New Message",
+        body: notificationMessage,
+      },
+      trigger: {
+        seconds: 10,
+      },
+    });
+  };
+
+  // const requestPermissions = async () => {
+  //   const { status } = await Permissions.getAsync(Permissions.NOTIFICATIONS);
+  //   if (status !== 'granted') {
+  //     alert('Notification permissions are required!');
+  //   }
+  // };
+
+
 
   useEffect(() => {
     navigation.setOptions({ title: receiverUserName });
@@ -116,7 +167,7 @@ const ChatScreen: React.FC = () => {
       createdAt: summaryMessage.createdAt, // Save as ISO string
       user: summaryMessage.user,
     });
-  
+
     const updatedMessagesWithSummary = GiftedChat.append(messages, [summaryMessage]);
     setPendingMessages(updatedMessagesWithSummary);
     console.log('Received Summary:', newSummary);
@@ -331,14 +382,33 @@ const ChatScreen: React.FC = () => {
     return null;
   };
 
-  const renderMessage = (props: any) => {
-    if (messages.length === 0) {
-      return (
-        <View style={styles.emptyMessageContainer}>
-          <TextInput style={styles.emptyMessageText}>Send "Hi" to start the conversation</TextInput>
+  const handleButtonAction = (option: string) => {
+    const responseMessage: IMessage = {
+      _id: Math.random().toString(),
+      text: `You selected: ${option}`,
+      createdAt: new Date().getTime(),
+      user: { _id: 1, name: 'User' },
+    };
+    handleSend([responseMessage]);
+  };
+
+  const renderAutomatedMessage = (message: IMessage) => {
+    return (
+      <View style={styles.automatedMessageContainer}>
+        <Text style={styles.automatedMessageText}>{message.text}</Text>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.button} onPress={() => handleButtonAction('Option 1')}>
+            <Text style={styles.buttonText}>Option 1</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.button} onPress={() => handleButtonAction('Option 2')}>
+            <Text style={styles.buttonText}>Option 2</Text>
+          </TouchableOpacity>
         </View>
-      );
-    }
+      </View>
+    );
+  };
+
+  const renderMessage = (props: any) => {
     return <Message {...props} />;
   };
 
@@ -348,7 +418,7 @@ const ChatScreen: React.FC = () => {
         {showSummary && (
           <SummaryWidget
             messages={messages}
-             onYes={handleYes}
+            onYes={handleYes}
             onNo={handleNo}
             onReceiveSummary={handleSummaryReceived}
             senderUserId={Number(senderUserId)}
@@ -360,7 +430,7 @@ const ChatScreen: React.FC = () => {
           onSend={handleSend}
           user={{
             _id: senderUserId,
-            name: senderUserName.toString()!,
+            name: senderUserName?.toString?.()!,
             avatar: `https://ui-avatars.com/api/?background=000000&color=FFF&name=${senderUserName}`
           }}
           renderInputToolbar={props => customInputToolbar(props)}
@@ -372,6 +442,7 @@ const ChatScreen: React.FC = () => {
           renderAccessory={renderAccessory}
           minInputToolbarHeight={60}
           keyboardShouldPersistTaps='never'
+          renderMessage={renderMessage}
         />
         <Animated.View
           style={[styles.floatingButton, { transform: iconPosition.getTranslateTransform() }]}
@@ -390,6 +461,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
+    // backgroundColor: '#000',
   },
   floatingButton: {
     position: 'absolute',
@@ -398,14 +470,29 @@ const styles = StyleSheet.create({
     padding: 4,
     elevation: 5,
   },
-  emptyMessageContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  automatedMessageContainer: {
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    marginVertical: 5,
   },
-  emptyMessageText: {
-    fontSize: 18,
-    color: '#888',
+  automatedMessageText: {
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  button: {
+    backgroundColor: '#007BFF',
+    padding: 10,
+    borderRadius: 5,
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  buttonText: {
+    color: '#fff',
     textAlign: 'center',
   },
 });
