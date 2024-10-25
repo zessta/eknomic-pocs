@@ -4,7 +4,7 @@ import { database } from '../components/firebaseConfig';
 import { ref, onValue, push } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, TouchableWithoutFeedback, Keyboard, Text } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, TouchableWithoutFeedback, Keyboard, Text, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import SummaryWidget from '../components/SummaryWidget';
@@ -15,9 +15,10 @@ import { TextInput } from 'react-native-paper';
 import * as Notifications from 'expo-notifications';
 import * as Permissions from 'expo-permissions';
 import * as BackgroundFetch from 'expo-background-fetch';
-import '../components/BackgroundFetch'; // Ensure the task is defined
+import BackgroundFetchScreen from '../components/BackgroundFetch'; // Ensure the task is defined
+import { getStorage, ref as storageReference, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-const customInputToolbar = (props: any) => {
+const customInputToolbar = (props: any, handleImagePicker: () => void) => {
   return (
     <InputToolbar
       {...props}
@@ -35,8 +36,21 @@ const customInputToolbar = (props: any) => {
       }}
       renderSend={(props) => (
         <Send {...props} containerStyle={{ alignContent: "center", alignItems: "center", justifyContent: "center" }}>
-          <View style={{ justifyContent: "center", alignItems: "center", padding: 10 }}>
-            <Ionicons name="send" size={24} />
+          <View style={{ 
+            justifyContent: "center", 
+            alignItems: "center", 
+            padding: 10, 
+            flexDirection: 'row', 
+            gap: 10 
+          }}>
+            {/* Image upload icon always visible */}
+            <TouchableOpacity onPress={handleImagePicker} style={{ marginRight: 10 }}>
+              <Ionicons name="image" size={24} color="white" />
+            </TouchableOpacity>
+
+            <View style={{ justifyContent: "center", alignItems: "center" }}>
+              <Ionicons name="send" size={24} />
+            </View>
           </View>
         </Send>
       )}
@@ -50,23 +64,7 @@ const customInputToolbar = (props: any) => {
 
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
-  useEffect(() => {
-    const registerBackgroundFetch = async () => {
-      try {
-        const test = await BackgroundFetch.registerTaskAsync('background-fetch-task', {
-          minimumInterval: 0.5 * 60, // 15 minutes
-          stopOnTerminate: false, // Android only
-          startOnBoot: true, // Android only
-        });
-
-        console.log('Background fetch registered!', test);
-      } catch (error) {
-        console.error('Failed to register background fetch:', error);
-      }
-    };
-
-    registerBackgroundFetch();
-  }, []);
+  const storage = getStorage();
   const { receiverUserId, receiverUserName, senderUserName, senderUserId } = useLocalSearchParams();
 
   const [messages, setMessages] = useState<IMessage[]>([]);
@@ -104,7 +102,6 @@ const ChatScreen: React.FC = () => {
   };
 
   const showNotification = async (newMessages: IMessage[]) => {
-    console.log('coming here')
     const notificationMessage = newMessages.length === 1
       ? `New message from ${newMessages[0].user.name}: ${newMessages[0].text}`
       : `You have ${newMessages.length} new messages.`;
@@ -226,6 +223,7 @@ const ChatScreen: React.FC = () => {
   }, [isConnected]);
 
   const handleSend = async (newMessages: IMessage[]) => {
+    console.log('newMessages', newMessages)
     const message = newMessages[0];
     const updatedMessages = GiftedChat.append(messages, newMessages);
     setMessages(updatedMessages);
@@ -252,25 +250,48 @@ const ChatScreen: React.FC = () => {
       aspect: [4, 3],
       quality: 1,
     });
-
+  
     if (!result.canceled) {
-      const message: IMessage = {
-        _id: Math.random().toString(),
-        text: '',
-        createdAt: new Date().getTime(),
-        user: { _id: Number(receiverUserId), name: 'User' },
-        image: result.assets[0].uri,
-      };
-      await handleSend([message]);
-
-      const messagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
-      await push(messagesRef, {
-        image: result.assets[0].uri,
-        createdAt: new Date().getTime(),
-        user: { _id: Number(receiverUserId), name: 'User' },
-      });
+      const uri = result.assets[0].uri;
+  
+      // Upload the image to Firebase Storage
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const filename = uri.substring(uri.lastIndexOf('/') + 1);
+      const storageRef = storageReference(storage, `images/${filename}`); // Adjust your storage path as needed
+  
+      try {
+        await uploadBytes(storageRef, blob);
+        const downloadURL = await getDownloadURL(storageRef);
+  
+        // Create the message with the image URL
+        const message: IMessage = {
+          _id: Math.random().toString(),
+          text: '',
+          createdAt: new Date().getTime(),
+          user: { _id: senderUserId, name: senderUserName.toString() },
+          image: downloadURL, // Use the download URL here
+        };
+  
+        // Update messages in local state
+        const updatedMessages = GiftedChat.append(messages, [message]);
+        setMessages(updatedMessages);
+  
+        // Send image message to Firebase Database
+        const messagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
+        await push(messagesRef, {
+          _id: message._id,
+          text: '',
+          createdAt: new Date().getTime(),
+          user: message.user,
+          image: downloadURL, // Store the download URL in the database
+        });
+      } catch (error) {
+        console.error('Error uploading image: ', error);
+      }
     }
   };
+  
 
   const toggleSummary = () => {
     setShowSummary(!showSummary);
@@ -345,16 +366,22 @@ const ChatScreen: React.FC = () => {
         }}
         textStyle={{
           right: {
-            color: 'white', // Text color for sent messages (right bubble)
+            color: 'white',
           },
           left: {
-            color: 'white', // Text color for received messages (left bubble)
+            color: 'white',
           },
         }}
+        renderMessageImage={(imageProps) => (
+          <Image
+            source={{ uri: imageProps.currentMessage.image }}
+            style={{ width: 200, height: 200, borderRadius: 15 }}
+          />
+        )}
       />
     );
   };
-
+  
   const renderReplyMessageView = (props: any) => {
     if (replyMessage) {
       return (
@@ -433,7 +460,7 @@ const ChatScreen: React.FC = () => {
             name: senderUserName?.toString?.()!,
             avatar: `https://ui-avatars.com/api/?background=000000&color=FFF&name=${senderUserName}`
           }}
-          renderInputToolbar={props => customInputToolbar(props)}
+          renderInputToolbar={props => customInputToolbar(props, handleImagePicker)}
           renderUsernameOnMessage={true}
           inverted={false}
           renderBubble={customBubble}
