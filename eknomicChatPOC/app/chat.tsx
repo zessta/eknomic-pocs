@@ -4,7 +4,7 @@ import { database } from '../components/firebaseConfig';
 import { ref, onValue, push } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, TouchableWithoutFeedback, Keyboard, Text, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, TouchableWithoutFeedback, Keyboard, Text, Image, Modal } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import SummaryWidget from '../components/SummaryWidget';
@@ -73,6 +73,13 @@ const ChatScreen: React.FC = () => {
   const [showSummary, setShowSummary] = useState<boolean>(false);
   const [iconPosition] = useState(new Animated.ValueXY({ x: 100, y: 100 }));
   const [replyMessage, setReplyMessage] = useState<IMessage | null>(null);
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const handleImagePress = (uri: string) => {
+    setSelectedImage(uri);
+    setModalVisible(true);
+  };
 
   const clearReplyMessage = () => setReplyMessage(null);
 
@@ -103,8 +110,8 @@ const ChatScreen: React.FC = () => {
 
   const showNotification = async (newMessages: IMessage[]) => {
     const notificationMessage = newMessages.length === 1
-      ? `New message from ${newMessages[0].user.name}: ${newMessages[0].text}`
-      : `You have ${newMessages.length} new messages.`;
+    ? `New message from ${newMessages[0].user.name}: ${newMessages[0].text}`
+    : `You have ${newMessages.length} new messages.`;
 
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -157,7 +164,7 @@ const ChatScreen: React.FC = () => {
       createdAt: new Date().getTime(),
       user: { _id: 1, name: 'Summary' }, // Unique ID for summary
     };
-    const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
+    const messageRef = ref(database,` chats/${senderUserId}_${receiverUserId}`);
     await push(messageRef, {
       _id: summaryMessage._id,
       text: summaryMessage.text,
@@ -249,48 +256,57 @@ const ChatScreen: React.FC = () => {
       allowsEditing: true,
       aspect: [4, 3],
       quality: 1,
+      allowsMultipleSelection: true, // Enable multiple selection
     });
   
     if (!result.canceled) {
-      const uri = result.assets[0].uri;
+      const images = result.assets;
   
-      // Upload the image to Firebase Storage
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const filename = uri.substring(uri.lastIndexOf('/') + 1);
-      const storageRef = storageReference(storage, `images/${filename}`); // Adjust your storage path as needed
-  
-      try {
-        await uploadBytes(storageRef, blob);
-        const downloadURL = await getDownloadURL(storageRef);
-  
-        // Create the message with the image URL
+      await Promise.all(images.map(async (image) => {
         const message: IMessage = {
           _id: Math.random().toString(),
           text: '',
           createdAt: new Date().getTime(),
           user: { _id: senderUserId, name: senderUserName.toString() },
-          image: downloadURL, // Use the download URL here
+          image: image.uri,
         };
+  
+        // Upload image and get URL
+        const imageUrl = await uploadImageToFirebase(image.uri); // Implement this function
+        message.image = imageUrl;
   
         // Update messages in local state
         const updatedMessages = GiftedChat.append(messages, [message]);
         setMessages(updatedMessages);
   
-        // Send image message to Firebase Database
+        // Send image message to Firebase
         const messagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
         await push(messagesRef, {
           _id: message._id,
           text: '',
           createdAt: new Date().getTime(),
           user: message.user,
-          image: downloadURL, // Store the download URL in the database
+          image: imageUrl,
         });
-      } catch (error) {
-        console.error('Error uploading image: ', error);
-      }
+      }));
     }
   };
+
+  const uploadImageToFirebase = async (uri: string): Promise<string> => {
+    const storage = getStorage();
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    
+    const imageRef = storageReference(storage, `chat-images/${new Date().getTime()}.jpg`); // Unique file names
+  
+    // Upload the image
+    await uploadBytes(imageRef, blob);
+    
+    // Get the download URL
+    const downloadURL = await getDownloadURL(imageRef);
+    return downloadURL;
+  };
+  
   
 
   const toggleSummary = () => {
@@ -373,14 +389,17 @@ const ChatScreen: React.FC = () => {
           },
         }}
         renderMessageImage={(imageProps) => (
-          <Image
-            source={{ uri: imageProps.currentMessage.image }}
-            style={{ width: 200, height: 200, borderRadius: 15 }}
-          />
+          <TouchableWithoutFeedback onPress={() => handleImagePress(imageProps.currentMessage.image!)}>
+        <Image
+          source={{ uri: imageProps.currentMessage.image }}
+          style={{ width: 200, height: 200, borderRadius: 15 }}
+        />
+      </TouchableWithoutFeedback>
         )}
       />
     );
   };
+  
   
   const renderReplyMessageView = (props: any) => {
     if (replyMessage) {
@@ -439,6 +458,17 @@ const ChatScreen: React.FC = () => {
     return <Message {...props} />;
   };
 
+  const renderMessageImage = (imageProps: any) => {
+    return (
+      <TouchableWithoutFeedback onPress={() => handleImagePress(imageProps.currentMessage.image)}>
+        <Image
+          source={{ uri: imageProps.currentMessage.image }}
+          style={{ width: 200, height: 200, borderRadius: 15 }}
+        />
+      </TouchableWithoutFeedback>
+    );
+  };
+
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
       <View style={styles.container}>
@@ -470,15 +500,27 @@ const ChatScreen: React.FC = () => {
           minInputToolbarHeight={60}
           keyboardShouldPersistTaps='never'
           renderMessage={renderMessage}
+          scrollToBottom
+          renderMessageImage={renderMessageImage}
         />
-        <Animated.View
-          style={[styles.floatingButton, { transform: iconPosition.getTranslateTransform() }]}
-          {...panResponder.panHandlers}
-        >
-          <TouchableOpacity onPress={toggleSummary}>
-            <FontAwesome name="info-circle" size={24} color="black" />
-          </TouchableOpacity>
-        </Animated.View>
+          <Animated.View
+            style={[styles.floatingButton, { transform: iconPosition.getTranslateTransform() }]}
+            {...panResponder.panHandlers}
+          >
+            <TouchableOpacity onPress={toggleSummary}>
+              <FontAwesome name="info-circle" size={24} color="black" />
+            </TouchableOpacity>
+          </Animated.View>
+        <Modal visible={isModalVisible} transparent={true} onRequestClose={() => setModalVisible(false)}>
+          <View style={styles.modalContainer}>
+            <Image source={{ uri: selectedImage! }} style={styles.fullScreenImage} resizeMode="contain" />
+            <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+              <View style={styles.closeButton}>
+                <Text style={{ color: 'white' }}>Close</Text>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </Modal>
       </View>
     </TouchableWithoutFeedback>
   );
@@ -521,6 +563,24 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#fff',
     textAlign: 'center',
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 10,
+    borderRadius: 5,
   },
 });
 
