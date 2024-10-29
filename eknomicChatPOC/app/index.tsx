@@ -3,6 +3,7 @@ import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import { ref, set, onValue } from 'firebase/database';
 import { database } from '../components/firebaseConfig';
 import { useNavigation, useRouter } from 'expo-router';
+import BackgroundFetchScreen from '../components/BackgroundFetch'; // Ensure the task is defined
 
 interface User {
     id: number;
@@ -65,6 +66,7 @@ const UserScreen: React.FC = () => {
                 onChangeText={setName}
             />
             <Button title="Login" onPress={handleCreateUser} />
+            <BackgroundFetchScreen />
         </View>
     );
 };

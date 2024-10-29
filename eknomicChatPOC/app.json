@@ -21,6 +21,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.shivazessta.eknomicChatPOC",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.NOTIFICATIONS"
       ]
@@ -36,6 +37,19 @@
         "expo-image-picker",
         {
           "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      "@react-native-firebase/crashlytics",
+      "@react-native-firebase/database",
+      "@react-native-firebase/storage",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
         }
       ]
     ],

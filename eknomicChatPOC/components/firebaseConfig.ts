@@ -1,5 +1,6 @@
-import { initializeApp } from 'firebase/app';
+import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getDatabase } from 'firebase/database';
+import {getStorage} from "firebase/storage";
 
 // Optionally import the services that you want to use
 // import {...} from "firebase/auth";
@@ -19,10 +20,10 @@ const firebaseConfig = {
   appId: '1:789203999300:android:d456bcdaf25cc5f7023a11',
 //   measurementId: 'G-measurement-id',
 };
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
-
-export { database };// For more information on how to access Firebase in your project,
+const storage = getStorage(app)
+export { database, storage };// For more information on how to access Firebase in your project,
 // see the Firebase documentation: https://firebase.google.com/docs/web/setup#access-firebase
 // import { database } from '../../components/firebaseConfig';

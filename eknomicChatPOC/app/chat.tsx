@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bubble, Composer, GiftedChat, IMessage, InputToolbar, Message, Send } from 'react-native-gifted-chat';
-import { database } from '../components/firebaseConfig';
+import { database, storage } from '../components/firebaseConfig';
 import { ref, onValue, push } from 'firebase/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, TouchableWithoutFeedback, Keyboard, Text, Image, Modal } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, TouchableWithoutFeedback, Keyboard, Text, Image, Modal, AppState } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import SummaryWidget from '../components/SummaryWidget';
@@ -13,10 +13,10 @@ import ReplyMessageBar from '../components/ReplyMessageBar';
 import * as Clipboard from 'expo-clipboard';
 import { TextInput } from 'react-native-paper';
 import * as Notifications from 'expo-notifications';
-import * as Permissions from 'expo-permissions';
 import * as BackgroundFetch from 'expo-background-fetch';
 import BackgroundFetchScreen from '../components/BackgroundFetch'; // Ensure the task is defined
-import { getStorage, ref as storageReference, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref as storageReference, uploadBytes, getDownloadURL } from 'firebase/storage';
+import * as TaskManager from 'expo-task-manager';
 
 const customInputToolbar = (props: any, handleImagePicker: () => void) => {
   return (
@@ -62,9 +62,39 @@ const customInputToolbar = (props: any, handleImagePicker: () => void) => {
   );
 };
 
+TaskManager.defineTask('IMAGE_UPLOAD_TASK', async ({ data, error }) => {
+  if (error) {
+    console.error('Error in upload task', error);
+    return;
+  }
+  
+  const { images } = data; // Expecting an array of image URIs
+  for (const uri of images) {
+    try {
+      await uploadImageToFirebase(uri);
+      console.log(`Uploaded: ${uri}`);
+    } catch (uploadError) {
+      console.error(`Failed to upload ${uri}`, uploadError);
+    }
+  }
+});
+
+const uploadImageToFirebase = async (uri: string): Promise<string> => {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  
+  const imageRef = storageReference(storage, `chat-images/${new Date().getTime()}.jpg`); // Unique file names
+
+  // Upload the image
+  await uploadBytes(imageRef, blob);
+  
+  // Get the download URL
+  const downloadURL = await getDownloadURL(imageRef);
+  return downloadURL;
+};
+
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
-  const storage = getStorage();
   const { receiverUserId, receiverUserName, senderUserName, senderUserId } = useLocalSearchParams();
 
   const [messages, setMessages] = useState<IMessage[]>([]);
@@ -164,7 +194,7 @@ const ChatScreen: React.FC = () => {
       createdAt: new Date().getTime(),
       user: { _id: 1, name: 'Summary' }, // Unique ID for summary
     };
-    const messageRef = ref(database,` chats/${senderUserId}_${receiverUserId}`);
+    const messageRef = ref(database,`chats/${senderUserId}_${receiverUserId}`);
     await push(messageRef, {
       _id: summaryMessage._id,
       text: summaryMessage.text,
@@ -211,6 +241,20 @@ const ChatScreen: React.FC = () => {
       console.error('Failed to remove offline messages:', error);
     }
   };
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        // Cleanup or re-register any tasks if necessary
+        BackgroundFetch.registerTaskAsync('IMAGE_UPLOAD_TASK');
+      }
+    });
+  
+    return () => {
+      subscription.remove();
+      BackgroundFetch.unregisterTaskAsync('IMAGE_UPLOAD_TASK');
+    };
+  }, []);
 
   useEffect(() => {
     loadMessages();
@@ -262,23 +306,39 @@ const ChatScreen: React.FC = () => {
     if (!result.canceled) {
       const images = result.assets;
   
-      await Promise.all(images.map(async (image) => {
-        const message: IMessage = {
-          _id: Math.random().toString(),
-          text: '',
-          createdAt: new Date().getTime(),
-          user: { _id: senderUserId, name: senderUserName.toString() },
-          image: image.uri,
-        };
-  
-        // Upload image and get URL
-        const imageUrl = await uploadImageToFirebase(image.uri); // Implement this function
+       // Prepare an array of promises for uploads
+    const uploadPromises = images.map(async (image) => {
+      const message: IMessage = {
+        _id: Math.random().toString(),
+        text: '',
+        createdAt: new Date().getTime(),
+        user: { _id: senderUserId, name: senderUserName.toString() },
+        image: image.uri,
+      };
+
+      // Check if app is in background
+      const appState = await AppState.currentState;
+      if (appState === 'background') {
+        // Register the background task for each image
+        await BackgroundFetch.registerTaskAsync('IMAGE_UPLOAD_TASK', {
+          minimumInterval: 30, // Minimum interval (in seconds) for background task
+          stopOnTerminate: false,
+        });
+        await BackgroundFetch.fetchAsync('IMAGE_UPLOAD_TASK', {
+          uri: image.uri,
+          userId: senderUserId,
+          userName: senderUserName,
+          chatId: `${senderUserId}_${receiverUserId}`,
+        });
+      } else {
+        // Regular upload if the app is in the foreground
+        const imageUrl = await uploadImageToFirebase(image.uri);
         message.image = imageUrl;
-  
+
         // Update messages in local state
         const updatedMessages = GiftedChat.append(messages, [message]);
         setMessages(updatedMessages);
-  
+
         // Send image message to Firebase
         const messagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
         await push(messagesRef, {
@@ -288,24 +348,14 @@ const ChatScreen: React.FC = () => {
           user: message.user,
           image: imageUrl,
         });
-      }));
-    }
+      }
+    });
+
+    await Promise.all(uploadPromises);
+  }
   };
 
-  const uploadImageToFirebase = async (uri: string): Promise<string> => {
-    const storage = getStorage();
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    
-    const imageRef = storageReference(storage, `chat-images/${new Date().getTime()}.jpg`); // Unique file names
-  
-    // Upload the image
-    await uploadBytes(imageRef, blob);
-    
-    // Get the download URL
-    const downloadURL = await getDownloadURL(imageRef);
-    return downloadURL;
-  };
+
   
   
 
