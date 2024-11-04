@@ -1,32 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, Text, View, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { ref, onValue } from 'firebase/database';
-import { database } from '../../components/firebaseConfig';
+import { FlatList, Text, View, StyleSheet, Image } from 'react-native';
+import { ref, onValue } from '@react-native-firebase/database';
+import database from '@react-native-firebase/database';
 import { Link } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 
 export interface User {
-    id: number; // Changed to string to match Firebase keys
+    id: string; // Changed to string to match Firebase keys
     name: string;
     avatar?: string; // Optional avatar URL
 }
 
-const UserListScreen = ({ navigation }: any) => {
+const UserListScreen: React.FC = ({ navigation }: any) => {
     const [users, setUsers] = useState<User[]>([]);
     const { senderUserId } = useLocalSearchParams();
 
     useEffect(() => {
-        const usersRef = ref(database, 'users');
-        onValue(usersRef, (snapshot) => {
+        const usersRef = ref(database(), 'users');
+        const unsubscribe = onValue(usersRef, (snapshot) => {
             const data = snapshot.val();
             const usersList: User[] = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
             setUsers(usersList);
         });
+
+        // Cleanup the listener on unmount
+        return () => unsubscribe();
     }, []);
-    console.log('users', users)
-    const senderUserName = users.length ? users.find((user) => user.id === Number(senderUserId))?.name : '';
-    console.log('senderUserNamefilter', senderUserName)
+
+    const senderUserName = users.length ? users.find((user) => user.id === senderUserId)!.name : '';
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -35,25 +38,26 @@ const UserListScreen = ({ navigation }: any) => {
             </View>
             <FlatList
                 data={users}
-                keyExtractor={item => `${item.id}`}
+                keyExtractor={item => item.id}
                 renderItem={({ item }) => {
-                  if(item.id !== Number(senderUserId)){
-                  return (
-                    <Link
-                    style={styles.userCard}
-                        href={{
-                            pathname: '/chat',
-                            params: { receiverUserId: item.id, receiverUserName: item.name, senderUserName: senderUserName, senderUserId: senderUserId}
-                        }}>
-                            <Image source={{ uri: item.avatar || 'https://ui-avatars.com/api/?name=User' }} style={styles.avatar} />
-                            <View style={styles.userInfo}>
-                                <Text style={styles.userName}>{item.name}</Text>
-                                <Text style={styles.userStatus}>Active</Text>
-                            </View>
-                            <MaterialIcons name="chevron-right" size={24} color="#B0BEC5" />
-                    </Link>
-                  )  
-                  } return null
+                    if (item.id !== senderUserId) {
+                        return (
+                            <Link
+                                style={styles.userCard}
+                                href={{
+                                    pathname: '/chat',
+                                    params: { receiverUserId: item.id, receiverUserName: item.name, senderUserName, senderUserId }
+                                }}>
+                                <Image source={{ uri: item.avatar || 'https://ui-avatars.com/api/?name=User' }} style={styles.avatar} />
+                                <View style={styles.userInfo}>
+                                    <Text style={styles.userName}>{item.name}</Text>
+                                    <Text style={styles.userStatus}>Active</Text>
+                                </View>
+                                <MaterialIcons name="chevron-right" size={24} color="#B0BEC5" />
+                            </Link>
+                        );
+                    }
+                    return null;
                 }}
                 contentContainerStyle={styles.listContent}
             />

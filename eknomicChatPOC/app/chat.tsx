@@ -1,10 +1,30 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Bubble, Composer, GiftedChat, IMessage, InputToolbar, Message, Send } from 'react-native-gifted-chat';
-import { database, storage } from '../components/firebaseConfig';
-import { ref, onValue, push } from 'firebase/database';
+import {
+  Animated,
+  AppState,
+  Image,
+  Keyboard,
+  Modal,
+  PanResponder,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from 'react-native';
+import {
+  Bubble,
+  Composer,
+  GiftedChat,
+  IMessage,
+  InputToolbar,
+  Message,
+  Send,
+} from 'react-native-gifted-chat';
+import database from '@react-native-firebase/database';
+import storage from '@react-native-firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import { View, StyleSheet, TouchableOpacity, PanResponder, Animated, TouchableWithoutFeedback, Keyboard, Text, Image, Modal, AppState } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import SummaryWidget from '../components/SummaryWidget';
@@ -14,61 +34,37 @@ import * as Clipboard from 'expo-clipboard';
 import { TextInput } from 'react-native-paper';
 import * as Notifications from 'expo-notifications';
 import * as BackgroundFetch from 'expo-background-fetch';
-import BackgroundFetchScreen from '../components/BackgroundFetch'; // Ensure the task is defined
-import { ref as storageReference, uploadBytes, getDownloadURL } from 'firebase/storage';
 import * as TaskManager from 'expo-task-manager';
 
-const customInputToolbar = (props: any, handleImagePicker: () => void) => {
-  return (
-    <InputToolbar
-      {...props}
-      containerStyle={{
-        backgroundColor: "#232D36",
-        borderTopWidth: 0,
-        padding: 2,
-        marginBottom: 8,
-        marginLeft: 4,
-        marginRight: 4,
-        marginTop: 4,
-        borderRadius: 20,
-        flexDirection: "column-reverse",
-        position: "relative",
-      }}
-      renderSend={(props) => (
-        <Send {...props} containerStyle={{ alignContent: "center", alignItems: "center", justifyContent: "center" }}>
-          <View style={{ 
-            justifyContent: "center", 
-            alignItems: "center", 
-            padding: 10, 
-            flexDirection: 'row', 
-            gap: 10 
-          }}>
-            {/* Image upload icon always visible */}
-            <TouchableOpacity onPress={handleImagePicker} style={{ marginRight: 10 }}>
-              <Ionicons name="image" size={24} color="white" />
-            </TouchableOpacity>
-
-            <View style={{ justifyContent: "center", alignItems: "center" }}>
-              <Ionicons name="send" size={24} />
-            </View>
+const customInputToolbar = (props: any, handleImagePicker: () => Promise<void>) => (
+  <InputToolbar
+    {...props}
+    containerStyle={styles.inputToolbar}
+    renderSend={(props) => (
+      <Send {...props} containerStyle={styles.sendContainer}>
+        <View style={styles.sendButtonContainer}>
+          <TouchableOpacity onPress={handleImagePicker}>
+            <Ionicons name="image" size={24} color="white" />
+          </TouchableOpacity>
+          <View>
+            <Ionicons name="send" size={24} color="white" />
           </View>
-        </Send>
-      )}
-      renderComposer={(props) => (
-        <Composer {...props} textInputStyle={{ color: "white", marginTop: 4 }} />
-      )}
-      accessoryStyle={{ height: "auto" }}
-    />
-  );
-};
+        </View>
+      </Send>
+    )}
+    renderComposer={(props) => (
+      <Composer {...props} textInputStyle={styles.textInput} />
+    )}
+  />
+);
 
-TaskManager.defineTask('IMAGE_UPLOAD_TASK', async ({ data, error }) => {
+TaskManager.defineTask('IMAGE_UPLOAD_TASK', async ({ data, error }: any) => {
   if (error) {
     console.error('Error in upload task', error);
     return;
   }
-  
-  const { images } = data; // Expecting an array of image URIs
+
+  const { images }: { images: string[] } = data; // Expecting an array of image URIs
   for (const uri of images) {
     try {
       await uploadImageToFirebase(uri);
@@ -82,25 +78,20 @@ TaskManager.defineTask('IMAGE_UPLOAD_TASK', async ({ data, error }) => {
 const uploadImageToFirebase = async (uri: string): Promise<string> => {
   const response = await fetch(uri);
   const blob = await response.blob();
-  
-  const imageRef = storageReference(storage, `chat-images/${new Date().getTime()}.jpg`); // Unique file names
+  const imageRef = storage().ref(`chat-images/${new Date().getTime()}.jpg`);
 
-  // Upload the image
-  await uploadBytes(imageRef, blob);
-  
-  // Get the download URL
-  const downloadURL = await getDownloadURL(imageRef);
+  await imageRef.put(blob);
+  const downloadURL = await imageRef.getDownloadURL();
   return downloadURL;
 };
 
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
-  const { receiverUserId, receiverUserName, senderUserName, senderUserId } = useLocalSearchParams();
-
+  const { receiverUserId, receiverUserName, senderUserId, senderUserName } = useLocalSearchParams() as any;
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [pendingMessages, setPendingMessages] = useState<IMessage[]>([]);
-  const [isConnected, setIsConnected] = useState<boolean>(true);
-  const [showSummary, setShowSummary] = useState<boolean>(false);
+  const [isConnected, setIsConnected] = useState(true);
+  const [showSummary, setShowSummary] = useState(false);
   const [iconPosition] = useState(new Animated.ValueXY({ x: 100, y: 100 }));
   const [replyMessage, setReplyMessage] = useState<IMessage | null>(null);
   const [isModalVisible, setModalVisible] = useState(false);
@@ -113,20 +104,37 @@ const ChatScreen: React.FC = () => {
 
   const clearReplyMessage = () => setReplyMessage(null);
 
-  const loadMessages = () => {
-    const senderMessagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
-    const receiverMessagesRef = ref(database, `chats/${receiverUserId}_${senderUserId}`);
+  useEffect(() => {
+    navigation.setOptions({ title: receiverUserName });
+    loadMessages();
+    loadOfflineMessages();
 
-    onValue(senderMessagesRef, snapshot => {
-      const senderMessages: IMessage[] = snapshot.val() ? Object.values(snapshot.val()) : [];
-      onValue(receiverMessagesRef, snapshot => {
-        const receiverMessages: IMessage[] = snapshot.val() ? Object.values(snapshot.val()) : [];
-        const allMessages: IMessage[] = [...senderMessages.reverse(), ...receiverMessages.reverse()].map(msg => ({
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(state.isConnected);
+    });
+
+    return () => unsubscribe();
+  }, [receiverUserId]);
+
+  useEffect(() => {
+    if (isConnected) {
+      syncOfflineMessagesToFirebase();
+    }
+  }, [isConnected]);
+
+  const loadMessages = () => {
+    const senderMessagesRef = database().ref(`chats/${senderUserId}_${receiverUserId}`);
+    const receiverMessagesRef = database().ref(`chats/${receiverUserId}_${senderUserId}`);
+
+    senderMessagesRef.on('value', snapshot => {
+      const senderMessages = snapshot.val() ? Object.values(snapshot.val()) : [];
+      receiverMessagesRef.on('value', snapshot => {
+        const receiverMessages = snapshot.val() ? Object.values(snapshot.val()) : [];
+        const allMessages = [...senderMessages.reverse(), ...receiverMessages.reverse()].map(msg => ({
           ...msg,
-          createdAt: new Date(msg.createdAt).getTime(), // Ensure createdAt is a timestamp
+          createdAt: new Date(msg.createdAt).getTime(),
         })).sort((a, b) => a.createdAt - b.createdAt);
 
-        // Check for unread messages and show notification
         const newMessages = allMessages.filter(msg => !messages.some(existingMsg => existingMsg._id === msg._id));
         if (newMessages.length > 0) {
           showNotification(newMessages);
@@ -140,32 +148,17 @@ const ChatScreen: React.FC = () => {
 
   const showNotification = async (newMessages: IMessage[]) => {
     const notificationMessage = newMessages.length === 1
-    ? `New message from ${newMessages[0].user.name}: ${newMessages[0].text}`
-    : `You have ${newMessages.length} new messages.`;
+      ? `New message from ${newMessages[0].user.name}: ${newMessages[0].text}`
+      : `You have ${newMessages.length} new messages.`;
 
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "New Message",
         body: notificationMessage,
       },
-      trigger: {
-        seconds: 10,
-      },
+      trigger: { seconds: 10 },
     });
   };
-
-  // const requestPermissions = async () => {
-  //   const { status } = await Permissions.getAsync(Permissions.NOTIFICATIONS);
-  //   if (status !== 'granted') {
-  //     alert('Notification permissions are required!');
-  //   }
-  // };
-
-
-
-  useEffect(() => {
-    navigation.setOptions({ title: receiverUserName });
-  }, [receiverUserName]);
 
   const loadOfflineMessages = async () => {
     try {
@@ -187,20 +180,16 @@ const ChatScreen: React.FC = () => {
     }
   };
 
-  const handleSummaryReceived = async(newSummary: string) => {
+  const handleSummaryReceived = async (newSummary: string) => {
     const summaryMessage: IMessage = {
       _id: Math.random().toString(),
       text: newSummary,
       createdAt: new Date().getTime(),
-      user: { _id: 1, name: 'Summary' }, // Unique ID for summary
+      user: { _id: 1, name: 'Summary' },
     };
-    const messageRef = ref(database,`chats/${senderUserId}_${receiverUserId}`);
-    await push(messageRef, {
-      _id: summaryMessage._id,
-      text: summaryMessage.text,
-      createdAt: summaryMessage.createdAt, // Save as ISO string
-      user: summaryMessage.user,
-    });
+    const messageRef = database().ref(`chats/${senderUserId}_${receiverUserId}`);
+    await messageRef.push(summaryMessage);
+    setMessages(prev => GiftedChat.append(prev, [summaryMessage]));
 
     const updatedMessagesWithSummary = GiftedChat.append(messages, [summaryMessage]);
     setPendingMessages(updatedMessagesWithSummary);
@@ -220,25 +209,12 @@ const ChatScreen: React.FC = () => {
     const messagesFromStorage: IMessage[] = JSON.parse(offlineMessages || '[]');
 
     if (messagesFromStorage.length) {
-      const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
+      const messageRef = database().ref(`chats/${senderUserId}_${receiverUserId}`);
 
       for (const message of messagesFromStorage) {
-        await push(messageRef, {
-          _id: message._id,
-          text: message.text,
-          createdAt: new Date().getTime(),
-          user: message.user,
-        });
+        await messageRef.push(message);
       }
-      await removeValue();
-    }
-  };
-
-  const removeValue = async () => {
-    try {
       await AsyncStorage.removeItem('offlineMessages');
-    } catch (error) {
-      console.error('Failed to remove offline messages:', error);
     }
   };
 
@@ -274,23 +250,17 @@ const ChatScreen: React.FC = () => {
   }, [isConnected]);
 
   const handleSend = async (newMessages: IMessage[]) => {
-    console.log('newMessages', newMessages)
     const message = newMessages[0];
     const updatedMessages = GiftedChat.append(messages, newMessages);
     setMessages(updatedMessages);
 
     if (isConnected) {
-      const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
-      await push(messageRef, {
-        _id: message._id,
-        text: message.text,
-        createdAt: new Date().getTime(),
-        user: message.user,
-      });
+      const messageRef = database().ref(`chats/${senderUserId}_${receiverUserId}`);
+      await messageRef.push(message);
     } else {
       const updatedPendingMessages = GiftedChat.append(pendingMessages, newMessages);
       setPendingMessages(updatedPendingMessages);
-      await saveOfflineMessages(updatedPendingMessages);
+      await AsyncStorage.setItem('offlineMessages', JSON.stringify(updatedPendingMessages));
     }
   };
 
@@ -300,59 +270,62 @@ const ChatScreen: React.FC = () => {
       allowsEditing: true,
       aspect: [4, 3],
       quality: 1,
-      allowsMultipleSelection: true, // Enable multiple selection
+      allowsMultipleSelection: true,
     });
-  
+
     if (!result.canceled) {
       const images = result.assets;
-  
-       // Prepare an array of promises for uploads
-    const uploadPromises = images.map(async (image) => {
-      const message: IMessage = {
-        _id: Math.random().toString(),
-        text: '',
-        createdAt: new Date().getTime(),
-        user: { _id: senderUserId, name: senderUserName.toString() },
-        image: image.uri,
-      };
-
-      // Check if app is in background
-      const appState = await AppState.currentState;
-      if (appState === 'background') {
-        // Register the background task for each image
-        await BackgroundFetch.registerTaskAsync('IMAGE_UPLOAD_TASK', {
-          minimumInterval: 30, // Minimum interval (in seconds) for background task
-          stopOnTerminate: false,
-        });
-        await BackgroundFetch.fetchAsync('IMAGE_UPLOAD_TASK', {
-          uri: image.uri,
-          userId: senderUserId,
-          userName: senderUserName,
-          chatId: `${senderUserId}_${receiverUserId}`,
-        });
-      } else {
-        // Regular upload if the app is in the foreground
+      const uploadPromises = images.map(async (image) => {
+        const message: IMessage = {
+          _id: Math.random().toString(),
+          text: '',
+          createdAt: new Date().getTime(),
+          user: { _id: senderUserId, name: senderUserName.toString() },
+          image: image.uri,
+        };
+        const appState = await AppState.currentState;
+        if (appState === 'background') {
+          // Register the background task for each image
+          await BackgroundFetch.registerTaskAsync('IMAGE_UPLOAD_TASK', {
+            minimumInterval: 30, // Minimum interval (in seconds) for background task
+            stopOnTerminate: false,
+          });
+          await BackgroundFetch.fetchAsync('IMAGE_UPLOAD_TASK', {
+            uri: image.uri,
+            userId: senderUserId,
+            userName: senderUserName,
+            chatId: `${senderUserId}_${receiverUserId}`,
+          });
+        } else {
         const imageUrl = await uploadImageToFirebase(image.uri);
         message.image = imageUrl;
 
-        // Update messages in local state
         const updatedMessages = GiftedChat.append(messages, [message]);
         setMessages(updatedMessages);
 
-        // Send image message to Firebase
-        const messagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
-        await push(messagesRef, {
-          _id: message._id,
-          text: '',
-          createdAt: new Date().getTime(),
-          user: message.user,
-          image: imageUrl,
-        });
-      }
-    });
+        const messagesRef = database().ref(`chats/${senderUserId}_${receiverUserId}`);
+        await messagesRef.push({ ...message, image: imageUrl });
+        }
+      });
 
-    await Promise.all(uploadPromises);
-  }
+
+      await Promise.all(uploadPromises);
+    }
+  };
+
+  const handleReply = (message: IMessage) => {
+    setReplyMessage(message);
+    setModalVisible(true);
+  };
+
+  const handleCopyToClipboard = async (text: string) => {
+    await Clipboard.setStringAsync(text);
+    alert('Copied to clipboard!');
+  };
+
+  const handleModalClose = () => {
+    setModalVisible(false);
+    setReplyMessage(null);
   };
 
 
@@ -519,8 +492,10 @@ const ChatScreen: React.FC = () => {
     );
   };
 
+
   return (
-    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+    <View style={styles.container}>
+ <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
       <View style={styles.container}>
         {showSummary && (
           <SummaryWidget
@@ -573,14 +548,41 @@ const ChatScreen: React.FC = () => {
         </Modal>
       </View>
     </TouchableWithoutFeedback>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
+  },
+  innerContainer: {
+    flex: 1,
     padding: 10,
-    // backgroundColor: '#000',
+  },
+  inputToolbar: {
+    backgroundColor: '#0084ff',
+  },
+  sendContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 5,
+  },
+  sendButtonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  textInput: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+    padding: 10,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   floatingButton: {
     position: 'absolute',
@@ -617,12 +619,6 @@ const styles = StyleSheet.create({
   fullScreenImage: {
     width: '100%',
     height: '100%',
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   closeButton: {
     position: 'absolute',
