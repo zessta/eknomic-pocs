@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { FlatList, Text, View, StyleSheet, Image } from 'react-native';
-import { ref, onValue } from '@react-native-firebase/database';
-import database from '@react-native-firebase/database';
+import { database } from '../../components/firebaseConfig'; // Correct Firebase import
+import { ref, onValue } from '@react-native-firebase/database'; // Firebase database functions
 import { Link } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 
 export interface User {
-    id: string; // Changed to string to match Firebase keys
+    id: string;
     name: string;
-    avatar?: string; // Optional avatar URL
+    avatar?: string;
 }
 
 const UserListScreen: React.FC = ({ navigation }: any) => {
@@ -17,18 +17,21 @@ const UserListScreen: React.FC = ({ navigation }: any) => {
     const { senderUserId } = useLocalSearchParams();
 
     useEffect(() => {
-        const usersRef = ref(database(), 'users');
+        // Set up the reference to the Firebase Realtime Database
+        const usersRef = ref(database, 'users'); // Reference to 'users' node
+
         const unsubscribe = onValue(usersRef, (snapshot) => {
-            const data = snapshot.val();
+            const data = snapshot.val(); // Get the data from the snapshot
             const usersList: User[] = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
-            setUsers(usersList);
+            setUsers(usersList); // Update the state with the fetched users
         });
 
-        // Cleanup the listener on unmount
+        // Cleanup the listener when the component unmounts
         return () => unsubscribe();
     }, []);
 
-    const senderUserName = users.length ? users.find((user) => user.id === senderUserId)!.name : '';
+    // Find sender's name from the users list
+    const senderUserName = users.length ? users.find((user) => user.id === senderUserId)!?.name : '';
 
     return (
         <View style={styles.container}>
@@ -40,6 +43,7 @@ const UserListScreen: React.FC = ({ navigation }: any) => {
                 data={users}
                 keyExtractor={item => item.id}
                 renderItem={({ item }) => {
+                    // Exclude the sender user from the list
                     if (item.id !== senderUserId) {
                         return (
                             <Link
