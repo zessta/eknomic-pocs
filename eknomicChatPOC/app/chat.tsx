@@ -21,7 +21,7 @@ import {
   Message,
   Send,
 } from 'react-native-gifted-chat';
-import database from '@react-native-firebase/database';
+// import database from '@react-native-firebase/database';
 import storage from '@react-native-firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
@@ -35,6 +35,8 @@ import { TextInput } from 'react-native-paper';
 import * as Notifications from 'expo-notifications';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
+import { database } from '../components/firebaseConfig'; // Adjust the path accordingly
+import { ref, set } from '@react-native-firebase/database';
 
 const customInputToolbar = (props: any, handleImagePicker: () => Promise<void>) => (
   <InputToolbar
@@ -123,8 +125,8 @@ const ChatScreen: React.FC = () => {
   }, [isConnected]);
 
   const loadMessages = () => {
-    const senderMessagesRef = database().ref(`chats/${senderUserId}_${receiverUserId}`);
-    const receiverMessagesRef = database().ref(`chats/${receiverUserId}_${senderUserId}`);
+    const senderMessagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
+    const receiverMessagesRef = ref(database, `chats/${receiverUserId}_${senderUserId}`);
 
     senderMessagesRef.on('value', snapshot => {
       const senderMessages = snapshot.val() ? Object.values(snapshot.val()) : [];
@@ -187,7 +189,7 @@ const ChatScreen: React.FC = () => {
       createdAt: new Date().getTime(),
       user: { _id: 1, name: 'Summary' },
     };
-    const messageRef = database().ref(`chats/${senderUserId}_${receiverUserId}`);
+    const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
     await messageRef.push(summaryMessage);
     setMessages(prev => GiftedChat.append(prev, [summaryMessage]));
 
@@ -209,7 +211,7 @@ const ChatScreen: React.FC = () => {
     const messagesFromStorage: IMessage[] = JSON.parse(offlineMessages || '[]');
 
     if (messagesFromStorage.length) {
-      const messageRef = database().ref(`chats/${senderUserId}_${receiverUserId}`);
+      const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
 
       for (const message of messagesFromStorage) {
         await messageRef.push(message);
@@ -255,7 +257,7 @@ const ChatScreen: React.FC = () => {
     setMessages(updatedMessages);
 
     if (isConnected) {
-      const messageRef = database().ref(`chats/${senderUserId}_${receiverUserId}`);
+      const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
       await messageRef.push(message);
     } else {
       const updatedPendingMessages = GiftedChat.append(pendingMessages, newMessages);
@@ -303,7 +305,7 @@ const ChatScreen: React.FC = () => {
         const updatedMessages = GiftedChat.append(messages, [message]);
         setMessages(updatedMessages);
 
-        const messagesRef = database().ref(`chats/${senderUserId}_${receiverUserId}`);
+        const messagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
         await messagesRef.push({ ...message, image: imageUrl });
         }
       });

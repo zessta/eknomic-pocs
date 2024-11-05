@@ -1,100 +1,115 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import { ref, set, onValue } from '@react-native-firebase/database';
-import database from '@react-native-firebase/database';
+import { database } from '../components/firebaseConfig';  // Import Firebase database correctly
 import { useNavigation, useRouter } from 'expo-router';
-// import BackgroundFetchScreen from '../components/BackgroundFetch'; // Ensure the task is defined
 
 interface User {
-    id: number;
-    name: string;
-    avatar?: string;
+  id: string;
+  name: string;
+  avatar?: string;
 }
 
 const UserScreen: React.FC = () => {
-    const [name, setName] = useState<string>('');
-    const [avatar, setAvatar] = useState<string>('');
-    const [users, setUsers] = useState<Record<string, User>>({});
-    const router = useRouter();
-    const navigation = useNavigation();
+  const [name, setName] = useState<string>('');
+  const [avatar, setAvatar] = useState<string>('');
+  const [users, setUsers] = useState<Record<string, User>>({});
+  const router = useRouter();
+  const navigation = useNavigation();
 
-    useEffect(() => {
-        navigation.setOptions({ title: 'Eknomic' });
-    }, [navigation]);
+  useEffect(() => {
+    navigation.setOptions({ title: 'Eknomic' });
+  }, [navigation]);
 
-    useEffect(() => {
-        const usersRef = ref(database(), 'users');
-        const unsubscribe = onValue(usersRef, (snapshot) => {
-            const data = snapshot.val() || {};
-            setUsers(data); // Store the users in state
-        });
+  // Load users from Firebase database
+  useEffect(() => {
+    const usersRef = ref(database, 'users');
+    const unsubscribe = onValue(usersRef, snapshot => {
+      const data = snapshot.val();
+      if (data) {
+        // Log the data to ensure it's being retrieved correctly
+        console.log('Fetched users:', data);
+        setUsers(data); // Store users in state
+      } else {
+        console.log('No users found in the database.');
+      }
+    });
 
-        // Cleanup subscription on unmount
-        return () => unsubscribe();
-    }, []);
+    return () => unsubscribe(); // Cleanup listener on unmount
+  }, []);
+  console.log('suers', users)
 
-    const handleCreateUser = async () => {
-        if (!name) {
-            Alert.alert('Please enter your name.');
-            return;
-        }
+  useEffect(() => {
+    console.log('Updated users state:', users); // Log users state whenever it changes
+  }, [users]); // This will trigger whenever users state updates
 
-        // Check if the user already exists
-        const existingUser = Object.values(users).find(user => user.name === name);
+  const handleCreateUser = async () => {
+    if (!name) {
+      Alert.alert('Please enter your name.');
+      return;
+    }
 
-        if (existingUser) {
-            // User exists, navigate to chat screen with existing user ID
-            router.push(`/(tabs)/chatTest?senderUserId=${existingUser.id}`);
-        } else {
-            // Create a new user
-            const userId = new Date().getTime(); // Simple user ID based on timestamp
-            const userRef = ref(database(), `users/${userId}`);
+    // Check if user already exists
+    const existingUser = Object.values(users).find(user => user.name === name);
+    if (existingUser) {
+      // If user exists, navigate to chat screen with existing user ID
+      router.push(`/(tabs)/chatTest?senderUserId=${existingUser.id}`);
+    } else {
+      // Create a new user
+      const userId = new Date().getTime().toString(); // Simple user ID based on timestamp
+      const userRef = ref(database, `users/${userId}`);
+        console.log('userId', userId)
+      await set(userRef, {
+        name,
+        avatar,
+        id: userId, // Ensure the user object has an `id` key
+      });
 
-            await set(userRef, {
-                name,
-                avatar,
-                id: userId // Use `id` instead of `userId` for consistency
-            });
+      // Navigate to chat screen with the new user's ID
+      router.push(`/(tabs)/chatTest?senderUserId=${userId}`);
+    }
+  };
 
-            router.push(`/(tabs)/chatTest?senderUserId=${userId}`);
-        }
-    };
-
-    return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Login</Text>
-            <TextInput
-                style={styles.input}
-                placeholder="Name"
-                value={name}
-                onChangeText={setName}
-            />
-            <Button title="Login" onPress={handleCreateUser} />
-            {/* <BackgroundFetchScreen /> */}
-        </View>
-    );
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Login</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Name"
+        value={name}
+        onChangeText={setName}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Avatar URL (optional)"
+        value={avatar}
+        onChangeText={setAvatar}
+      />
+      <Button title="Create User" onPress={handleCreateUser} />
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        padding: 16,
-        backgroundColor: '#E3F2FD',
-    },
-    title: {
-        fontSize: 24,
-        marginBottom: 20,
-        textAlign: 'center',
-    },
-    input: {
-        height: 40,
-        borderColor: 'gray',
-        borderWidth: 1,
-        marginBottom: 12,
-        paddingHorizontal: 10,
-        borderRadius: 5,
-    },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 16,
+    backgroundColor: '#E3F2FD',
+  },
+  title: {
+    fontSize: 24,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  input: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 12,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+  },
 });
 
 export default UserScreen;
