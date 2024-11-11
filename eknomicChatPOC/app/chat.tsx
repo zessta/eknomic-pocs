@@ -38,27 +38,33 @@ import * as TaskManager from 'expo-task-manager';
 import { database } from '../components/firebaseConfig'; // Adjust the path accordingly
 import { ref, set } from '@react-native-firebase/database';
 
-const customInputToolbar = (props: any, handleImagePicker: () => Promise<void>) => (
-  <InputToolbar
-    {...props}
-    containerStyle={styles.inputToolbar}
-    renderSend={(props) => (
-      <Send {...props} containerStyle={styles.sendContainer}>
-        <View style={styles.sendButtonContainer}>
-          <TouchableOpacity onPress={handleImagePicker}>
-            <Ionicons name="image" size={24} color="white" />
-          </TouchableOpacity>
-          <View>
-            <Ionicons name="send" size={24} color="white" />
+const customInputToolbar = (props: any, handleImagePicker: () => void)=> {
+  return (
+    <InputToolbar
+      {...props}
+      containerStyle={styles.inputToolbar}
+      renderSend={(props) => (
+        <Send {...props} containerStyle={styles.sendContainer}>
+              <View style={styles.sendButtonContainer}>
+
+            {/* Image upload icon always visible */}
+            <TouchableOpacity onPress={handleImagePicker} style={{ marginRight: 10 }}>
+              <Ionicons name="image" size={24} color="white" />
+            </TouchableOpacity>
+
+            <TouchableOpacity  style={{ justifyContent: "center", alignItems: "center" }}>
+              <Ionicons name="send" size={24} />
+              </TouchableOpacity>
           </View>
-        </View>
-      </Send>
-    )}
-    renderComposer={(props) => (
-      <Composer {...props} textInputStyle={styles.textInput} />
-    )}
-  />
-);
+        </Send>
+      )}
+      renderComposer={(props) => (
+        <Composer {...props} textInputStyle={{ color: "white", marginTop: 4 }} />
+      )}
+      accessoryStyle={{ height: "auto" }}
+    />
+  );
+};
 
 TaskManager.defineTask('IMAGE_UPLOAD_TASK', async ({ data, error }: any) => {
   if (error) {
@@ -136,7 +142,6 @@ const ChatScreen: React.FC = () => {
           ...msg,
           createdAt: new Date(msg.createdAt).getTime(),
         })).sort((a, b) => a.createdAt - b.createdAt);
-
         const newMessages = allMessages.filter(msg => !messages.some(existingMsg => existingMsg._id === msg._id));
         if (newMessages.length > 0) {
           showNotification(newMessages);
@@ -231,6 +236,7 @@ const ChatScreen: React.FC = () => {
     return () => {
       subscription.remove();
       BackgroundFetch.unregisterTaskAsync('IMAGE_UPLOAD_TASK');
+      TaskManager.unregisterTaskAsync('IMAGE_UPLOAD_TASK');
     };
   }, []);
 
@@ -282,7 +288,7 @@ const ChatScreen: React.FC = () => {
           _id: Math.random().toString(),
           text: '',
           createdAt: new Date().getTime(),
-          user: { _id: senderUserId, name: senderUserName.toString() },
+          user: { _id: senderUserId, name: senderUserName },
           image: image.uri,
         };
         const appState = await AppState.currentState;
@@ -496,8 +502,7 @@ const ChatScreen: React.FC = () => {
 
 
   return (
-    <View style={styles.container}>
- <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
       <View style={styles.container}>
         {showSummary && (
           <SummaryWidget
@@ -511,8 +516,8 @@ const ChatScreen: React.FC = () => {
         )}
         <GiftedChat
           messages={messages}
-          onSend={handleSend}
-          user={{
+          onSend={newMessage => handleSend(newMessage)} 
+                   user={{
             _id: senderUserId,
             name: senderUserName?.toString?.()!,
             avatar: `https://ui-avatars.com/api/?background=000000&color=FFF&name=${senderUserName}`
@@ -550,41 +555,48 @@ const ChatScreen: React.FC = () => {
         </Modal>
       </View>
     </TouchableWithoutFeedback>
-    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    padding: 10,
   },
   innerContainer: {
     flex: 1,
     padding: 10,
   },
   inputToolbar: {
-    backgroundColor: '#0084ff',
+    backgroundColor: "#232D36",
+    borderTopWidth: 0,
+    padding: 2,
+    marginBottom: 8,
+    marginLeft: 4,
+    marginRight: 4,
+    marginTop: 4,
+    borderRadius: 20,
+    flexDirection: "column-reverse",
+    position: "relative",
   },
   sendContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 5,
+    alignContent: "center", alignItems: "center", justifyContent: "center" 
   },
   sendButtonContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: "center", 
+    alignItems: "center", 
+    padding: 10, 
+    flexDirection: 'row', 
+    gap: 10 
   },
   textInput: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: 20,
-    padding: 10,
+    color: "white", marginTop: 4
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
   },
   floatingButton: {
     position: 'absolute',
