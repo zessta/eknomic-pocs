@@ -36,7 +36,7 @@ import * as Notifications from 'expo-notifications';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import { database } from '../components/firebaseConfig'; // Adjust the path accordingly
-import { ref, set } from '@react-native-firebase/database';
+import { push, ref, set } from '@react-native-firebase/database';
 
 const customInputToolbar = (props: any, handleImagePicker: () => void)=> {
   return (
@@ -52,9 +52,9 @@ const customInputToolbar = (props: any, handleImagePicker: () => void)=> {
               <Ionicons name="image" size={24} color="white" />
             </TouchableOpacity>
 
-            <TouchableOpacity  style={{ justifyContent: "center", alignItems: "center" }}>
+            <View style={{ justifyContent: "center", alignItems: "center" }}>
               <Ionicons name="send" size={24} />
-              </TouchableOpacity>
+            </View>
           </View>
         </Send>
       )}
@@ -153,6 +153,7 @@ const ChatScreen: React.FC = () => {
     });
   };
 
+
   const showNotification = async (newMessages: IMessage[]) => {
     const notificationMessage = newMessages.length === 1
       ? `New message from ${newMessages[0].user.name}: ${newMessages[0].text}`
@@ -195,7 +196,14 @@ const ChatScreen: React.FC = () => {
       user: { _id: 1, name: 'Summary' },
     };
     const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
-    await messageRef.push(summaryMessage);
+    // await messageRef.push(summaryMessage);
+    await push(messageRef, {
+      _id: summaryMessage._id,
+      text: summaryMessage.text,
+      createdAt: summaryMessage.createdAt, // Save as ISO string
+      user: summaryMessage.user,
+    });
+
     setMessages(prev => GiftedChat.append(prev, [summaryMessage]));
 
     const updatedMessagesWithSummary = GiftedChat.append(messages, [summaryMessage]);
@@ -219,7 +227,13 @@ const ChatScreen: React.FC = () => {
       const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
 
       for (const message of messagesFromStorage) {
-        await messageRef.push(message);
+        // await messageRef.push(message);
+        await push(messageRef, {
+          _id: message._id,
+          text: message.text,
+          createdAt: new Date().getTime(),
+          user: message.user,
+        });
       }
       await AsyncStorage.removeItem('offlineMessages');
     }
@@ -258,13 +272,22 @@ const ChatScreen: React.FC = () => {
   }, [isConnected]);
 
   const handleSend = async (newMessages: IMessage[]) => {
+    // event.persist(); // Persist the event to prevent it from being released
+
+  // Log the event to make sure it's still available after persisting it
     const message = newMessages[0];
     const updatedMessages = GiftedChat.append(messages, newMessages);
     setMessages(updatedMessages);
 
     if (isConnected) {
       const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
-      await messageRef.push(message);
+      // await messageRef.push(message);
+      await push(messageRef, {
+        _id: message._id,
+        text: message.text,
+        createdAt: new Date().getTime(),
+        user: message.user,
+      });
     } else {
       const updatedPendingMessages = GiftedChat.append(pendingMessages, newMessages);
       setPendingMessages(updatedPendingMessages);
@@ -500,7 +523,6 @@ const ChatScreen: React.FC = () => {
     );
   };
 
-
   return (
     <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
       <View style={styles.container}>
@@ -516,7 +538,7 @@ const ChatScreen: React.FC = () => {
         )}
         <GiftedChat
           messages={messages}
-          onSend={newMessage => handleSend(newMessage)} 
+          onSend={handleSend} 
                    user={{
             _id: senderUserId,
             name: senderUserName?.toString?.()!,

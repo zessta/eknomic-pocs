@@ -14,8 +14,8 @@
 		96905EF65AED1B983A6B3ABC /* libPods-eknomicChatPOC.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 58EEBF8E8E6FB1BC6CAF49B5 /* libPods-eknomicChatPOC.a */; };
 		B18059E884C0ABDD17F3DC3D /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC715A2D49A985799AEE119 /* ExpoModulesProvider.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		4CC37699B62247EA8B72DB2F /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 015A773C3F924252BE8855BF /* GoogleService-Info.plist */; };
-		71B246D6BE5A460199C84603 /* noop-file.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B7B99F9847A465AB124BDC5 /* noop-file.swift */; };
+		A34187099F12457E826602AF /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = FBBAC25A84974A23954C5C05 /* GoogleService-Info.plist */; };
+		6147B417105F42C1A2343E57 /* noop-file.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77E4AA70A7064D3AA03C5429 /* noop-file.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,9 +32,9 @@
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		FAC715A2D49A985799AEE119 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-eknomicChatPOC/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		015A773C3F924252BE8855BF /* GoogleService-Info.plist */ = {isa = PBXFileReference; name = "GoogleService-Info.plist"; path = "eknomicChatPOC/GoogleService-Info.plist"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.xml; explicitFileType = undefined; includeInIndex = 0; };
-		4B7B99F9847A465AB124BDC5 /* noop-file.swift */ = {isa = PBXFileReference; name = "noop-file.swift"; path = "eknomicChatPOC/noop-file.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
-		545519B7869349FE9227E6C8 /* eknomicChatPOC-Bridging-Header.h */ = {isa = PBXFileReference; name = "eknomicChatPOC-Bridging-Header.h"; path = "eknomicChatPOC/eknomicChatPOC-Bridging-Header.h"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; explicitFileType = undefined; includeInIndex = 0; };
+		FBBAC25A84974A23954C5C05 /* GoogleService-Info.plist */ = {isa = PBXFileReference; name = "GoogleService-Info.plist"; path = "eknomicChatPOC/GoogleService-Info.plist"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.xml; explicitFileType = undefined; includeInIndex = 0; };
+		77E4AA70A7064D3AA03C5429 /* noop-file.swift */ = {isa = PBXFileReference; name = "noop-file.swift"; path = "eknomicChatPOC/noop-file.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
+		437D210BB5E34ECBB7567915 /* eknomicChatPOC-Bridging-Header.h */ = {isa = PBXFileReference; name = "eknomicChatPOC-Bridging-Header.h"; path = "eknomicChatPOC/eknomicChatPOC-Bridging-Header.h"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,9 +59,9 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				13B07FB71A68108700A75B9A /* main.m */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				015A773C3F924252BE8855BF /* GoogleService-Info.plist */,
-				4B7B99F9847A465AB124BDC5 /* noop-file.swift */,
-				545519B7869349FE9227E6C8 /* eknomicChatPOC-Bridging-Header.h */,
+				FBBAC25A84974A23954C5C05 /* GoogleService-Info.plist */,
+				77E4AA70A7064D3AA03C5429 /* noop-file.swift */,
+				437D210BB5E34ECBB7567915 /* eknomicChatPOC-Bridging-Header.h */,
 			);
 			name = eknomicChatPOC;
 			sourceTree = "<group>";
@@ -201,8 +201,8 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				4CC37699B62247EA8B72DB2F /* GoogleService-Info.plist in Resources */,
-				A3F95F2466C84B2A9DA88357 /* eknomicChatPOC-Bridging-Header.h in Resources */,
+				A34187099F12457E826602AF /* GoogleService-Info.plist in Resources */,
+				EEE53ECE265D4BB28D700759 /* eknomicChatPOC-Bridging-Header.h in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -278,7 +278,7 @@
 				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				B18059E884C0ABDD17F3DC3D /* ExpoModulesProvider.swift in Sources */,
-				71B246D6BE5A460199C84603 /* noop-file.swift in Sources */,
+				6147B417105F42C1A2343E57 /* noop-file.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
