@@ -14,11 +14,22 @@ interface UserInfo {
     Messages: ChatMessage[]; // Add this to track messages for each user
 }
 
+interface GroupInfo {
+    GroupId: string;
+    GroupName: string;
+    Members: UserInfo[];
+    Messages: ChatMessage[]; // Track messages for each group
+}
+
 const ChatApp: React.FC = () => {
     const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
     const [message, setMessage] = useState<string>('');
+    const [groupName, setGroupName] = useState<string>('');
+    const [selectedUsers, setSelectedUsers] = useState<string[]>([]); // Selected users for the group
+
     const [username, setUsername] = useState<string>('');
     const [users, setUsers] = useState<UserInfo[]>([]); // Manage the list of users
+    const [groups, setGroups] = useState<GroupInfo[]>([]); // Track active groups
     const [isJoined, setIsJoined] = useState<boolean>(false);
 
     const joinChat = async () => {
@@ -65,15 +76,39 @@ const ChatApp: React.FC = () => {
                 );
             });
 
+            // Listen for incoming group messages
+            connection.on('ReceiveGroupMessage', (user: string, message: string, groupName: string) => {
+                setGroups(prevGroups =>
+                    prevGroups.map(g =>
+                        g.GroupName === groupName
+                            ? { ...g, Messages: [...g.Messages, { user, message, receiver: groupName }] }
+                            : g
+                    )
+                );
+            });
+
             // Listen for the updated user list and update users
             connection.on('UpdateUserList', (userListJson: string) => {
                 const updatedUsers = JSON.parse(userListJson) as UserInfo[];
                 setUsers(updatedUsers.map(user => ({ ...user, Messages: [] }))); // Update the user list in the frontend
             });
 
+            // Listen for group creation
+            connection.on('GroupCreated', (groupId: string, groupName: string) => {
+                setGroups(prevGroups => [...prevGroups, { GroupId: groupId, GroupName: groupName, Members: [], Messages: [] }]);
+            });
+
+            // Listen for group deletion
+            connection.on('GroupDeleted', (groupId: string) => {
+                setGroups(prevGroups => prevGroups.filter(g => g.GroupId !== groupId));
+            });
+
             return () => {
                 connection.off('ReceiveMessage');
+                connection.off('ReceiveGroupMessage');
                 connection.off('UpdateUserList');
+                connection.off('GroupCreated');
+                connection.off('GroupDeleted');
             };
         }
     }, [connection]); // Only re-run if the connection changes
@@ -119,7 +154,39 @@ const ChatApp: React.FC = () => {
         }
     };
 
-    // Call GetChatHistory when a chat with a specific user is opened
+    // Create a new group with selected users
+    const createGroup = async () => {
+        const selectedUserIds = users.filter(u => u.UserName !== username).map(u => u.ConnectionId);
+        if (connection && groupName && selectedUserIds.length > 0) {
+            try {
+                await connection.invoke('CreateGroup', groupName, selectedUserIds);
+                setGroupName(''); // Clear the group name input
+            } catch (err) {
+                console.error('Error creating group: ', err);
+            }
+        }
+    };
+
+    // Send a message to a group
+    const sendMessageToGroup = async (groupId: string) => {
+        const group = groups.find(g => g.GroupId === groupId);
+        if (connection && group?.GroupName && message) {
+            try {
+                await connection.invoke('SendMessageToGroup', group.GroupId, message);
+                setGroups(prevGroups =>
+                    prevGroups.map(g =>
+                        g.GroupId === groupId
+                            ? { ...g, Messages: [...g.Messages, { user: 'Me', message, receiver: group.GroupName }] }
+                            : g
+                    )
+                );
+                setMessage(''); // Clear message input after sending
+            } catch (err) {
+                console.error('Error sending group message: ', err);
+            }
+        }
+    };
+
     const loadChatHistory = async (fromUser: string, toUser: string) => {
         if (connection) {
             try {
@@ -137,7 +204,17 @@ const ChatApp: React.FC = () => {
             }
         }
     };
-
+    // Add members to a group
+    const addMembersToGroup = async (groupId: string) => {
+        if (connection && selectedUsers.length > 0) {
+            try {
+                await connection.invoke('AddMembersToGroup', groupId, selectedUsers);
+                setSelectedUsers([]); // Clear the selected users after adding
+            } catch (err) {
+                console.error('Error adding members to group: ', err);
+            }
+        }
+    };
     const handleUserClick = (user: UserInfo) => {
         loadChatHistory(username, user.UserName); // Load chat history with the selected user
     };
@@ -145,6 +222,17 @@ const ChatApp: React.FC = () => {
     const updateMessageInput = (msg: string, user: UserInfo) => {
         setUsers(prevUsers =>
             prevUsers.map(u => u.ConnectionId === user.ConnectionId ? { ...u, Message: msg } : u)
+        );
+    };
+
+    const updateGroupMessageInput = (msg: string, groupId: string) => {
+        setMessage(msg); // Update message input for the group
+    };
+
+    // Select users to add to the group
+    const handleUserSelection = (userId: string) => {
+        setSelectedUsers(prev =>
+            prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
         );
     };
 
@@ -166,7 +254,18 @@ const ChatApp: React.FC = () => {
                 </div>
             ) : (
                 <div>
-                    <p>Welcome, {username}!</p>
+                        <p>Welcome, {username}!</p>
+                        {/* Create Group */}
+                        <input
+                            type="text"
+                            placeholder="Group Name"
+                            value={groupName}
+                            onChange={(e) => setGroupName(e.target.value)}
+                        />
+                        <button onClick={createGroup} disabled={!groupName || selectedUsers.length === 0}>
+                            Create Group
+                        </button>
+                        <pre></pre>
 
                     {/* Send message to all */}
                     <input
@@ -183,8 +282,14 @@ const ChatApp: React.FC = () => {
                     <div>
                         <h3>Users</h3>
                         <ul>
-                                {users.map((user, index) => (
-                                    <li key={index} onClick={() => handleUserClick(user)} style={{ border: user ? '2px solid lightblue' : '0', margin: 5, width: 500, padding: 10 }}>
+                            {users.map((user, index) => (
+                                <li key={index} onClick={() => handleUserClick(user)} style={{ border: user ? '2px solid lightblue' : '0', margin: 5, width: 500, padding: 10 }}>
+
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedUsers.includes(user.ConnectionId)}
+                                        onChange={() => handleUserSelection(user.ConnectionId)}
+                                    />
                                     {user.UserName} (ID: {user.ConnectionId}){' '}
                                     <div>
                                             {/* Messages exchanged with the user */}
@@ -215,7 +320,44 @@ const ChatApp: React.FC = () => {
                                 </li>
                             ))}
                         </ul>
-                    </div>
+                        </div>
+
+                        {/* List of groups */}
+                        <div>
+                            <h3>Groups</h3>
+                            <ul>
+                                {groups.map((group, index) => (
+                                    <li key={index}>
+                                        <div>
+                                            <h4>{group.GroupName}</h4>
+                                            <ul style={{ border: group.Messages.length === 0 ? '0' : '1px solid grey', margin: 5 }}>
+                                                {group.Messages.map((msg, idx) => (
+                                                    <li key={idx}>
+                                                        <strong>{msg.user}:</strong> {msg.message}
+                                                    </li>
+                                                ))}
+                                            </ul>
+
+                                            {/* Add members to the group */}
+                                            <button onClick={() => addMembersToGroup(group.GroupId)}>
+                                                Add Selected Users to Group
+                                            </button>
+
+                                            {/* Input to send a message to the group */}
+                                            <input
+                                                type="text"
+                                                placeholder="Type a message"
+                                                value={message}
+                                                onChange={(e) => setMessage(e.target.value)}
+                                            />
+                                            <button onClick={() => sendMessageToGroup(group.GroupId)}>
+                                                Send Group Message
+                                            </button>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                 </div>
             )}
         </div>
