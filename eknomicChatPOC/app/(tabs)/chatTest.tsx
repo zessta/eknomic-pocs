@@ -14,7 +14,7 @@ export interface User {
 
 const UserListScreen: React.FC = ({ navigation }: any) => {
     const [users, setUsers] = useState<User[]>([]);
-    const { senderUserId } = useLocalSearchParams();
+    const { senderUserId, senderUserName } = useLocalSearchParams();
 
     useEffect(() => {
         // Set up the reference to the Firebase Realtime Database
@@ -31,7 +31,7 @@ const UserListScreen: React.FC = ({ navigation }: any) => {
     }, []);
 
     // Find sender's name from the users list
-    const senderUserName = users.length ? users.find((user) => user.id === senderUserId)!?.name : '';
+    // const senderUserName = users.length ? users.find((user) => user.id === senderUserId)!?.name : '';
 
     return (
         <View style={styles.container}>
