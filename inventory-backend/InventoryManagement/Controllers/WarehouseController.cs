@@ -1,14 +1,16 @@
-﻿using InventoryManagement.Models;
-using InventoryManagement.Models.Entities;
-using InventoryManagement.Repositories.Interfaces;
+﻿using InventoryManagement.Domain.DTO;
+using InventoryManagement.Domain.Entities;
+using InventoryManagement.Filters;
+using InventoryManagement.Infrastructure.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace InventoryManagement.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/warehouse")]
     [ApiController]
+    [UriParserAttribute]
     public class WarehouseController : ControllerBase
     {
         private readonly IWarehouseRepository _warehouseRepository;
@@ -22,38 +24,18 @@ namespace InventoryManagement.Controllers
         public async Task<IActionResult> GetAllWarehouses()
         {
             var warehouses = await _warehouseRepository.GetAllWarehousesAsync();
-            var warehouseDtos = warehouses.Select(w => new WarehouseDto
-            {
-                WarehouseId = w.WarehouseId,
-                Location = w.Location,
-                InventoryItems = w.WarehouseInventories.Select(wi => new InventoryItemDto
-                {
-                    Id = wi.InventoryItem.Id,
-                    Name = wi.InventoryItem.Name,
-                    Brand = wi.InventoryItem.Brand,
-                    Price = wi.InventoryItem.Price
-                }).ToList()
-            }).ToList();
-
-            return Ok(warehouseDtos);
+            return Ok(warehouses);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> AddWarehouse(WarehouseDto warehouseDto)
+        [HttpPost("new")]
+        public async Task<IActionResult> AddWarehouse(WarehouseDto warehouse)
         {
-            var warehouse = new Warehouse
-            {
-                Location = warehouseDto.Location,
-                Manager = warehouseDto.Manager
-            };
-
             await _warehouseRepository.AddWarehouseAsync(warehouse);
-
             return Ok(warehouse);
         }
 
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteWarehouse(int id)
+        [HttpDelete("remove/{id}")]
+        public async Task<IActionResult> DeleteWarehouse(string id)
         {
             var warehouse = await _warehouseRepository.GetWarehouseByIdAsync(id);
             if (warehouse == null)
