@@ -1,15 +1,17 @@
+// UserListScreen.tsx
+
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity } from 'react-native';
-import { database } from './firebaseConfig';
-import { ref, onValue } from 'firebase/database';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import database from '@react-native-firebase/database';
+import { ref, onValue } from '@react-native-firebase/database';
 
 const UserListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [users, setUsers] = useState<any[]>([]);
 
   useEffect(() => {
-    const usersRef = ref(database, 'users'); // Assuming users are stored under 'users'
+    const usersRef = ref(database(), 'users'); // Assuming users are stored under 'users'
 
-    onValue(usersRef, snapshot => {
+    const unsubscribe = onValue(usersRef, snapshot => {
       const data = snapshot.val();
       if (data) {
         const parsedUsers = Object.keys(data).map(key => ({
@@ -19,6 +21,9 @@ const UserListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         setUsers(parsedUsers);
       }
     });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
 
   const handleUserPress = (user: any) => {
@@ -30,18 +35,30 @@ const UserListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   };
 
   return (
-    <View style={{ flex: 1, padding: 20 }}>
+    <View style={styles.container}>
       <FlatList
         data={users}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity onPress={() => handleUserPress(item)}>
-            <Text style={{ padding: 15, borderBottomWidth: 1 }}>{item.name}</Text>
+            <Text style={styles.userName}>{item.name}</Text>
           </TouchableOpacity>
         )}
       />
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  userName: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+});
 
 export default UserListScreen;

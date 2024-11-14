@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
-import { ref, set } from 'firebase/database';
-import { database } from './firebaseConfig';
+import { ref, set } from '@react-native-firebase/database';
+import database from '@react-native-firebase/database';
 import { useNavigation } from '@react-navigation/native';
 
-const UserScreen = () => {
-    const [name, setName] = useState('');
-    const [avatar, setAvatar] = useState('');
+const UserScreen: React.FC = () => {
+    const [name, setName] = useState<string>('');
+    const [avatar, setAvatar] = useState<string>('');
     const navigation = useNavigation();
 
     const handleCreateUser = async () => {
@@ -17,8 +17,8 @@ const UserScreen = () => {
             return;
         }
 
-        const userId = new Date().getTime(); // Simple user ID based on timestamp
-        const userRef = ref(database, `users/${userId}`);
+        const userId = new Date().getTime().toString(); // Simple user ID based on timestamp
+        const userRef = ref(database(), `users/${userId}`);
 
         await set(userRef, {
             name,

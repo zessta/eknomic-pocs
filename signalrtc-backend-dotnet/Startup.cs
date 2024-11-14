@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SignalRtc.Hubs;
+using SignalRtc.Storage;
+using System;
 
 namespace SignalRtc
 {
@@ -13,6 +15,12 @@ namespace SignalRtc
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddDbContext<PgdbContext>();
+            services.AddDbContext<PgdbJsonContext>();
+            services.AddScoped<LocalDbFactory>();
+            services.AddScoped<IChatPgStoreProvider, ChatPgStoreProvider>();
+            services.AddScoped<IChatPgJsonStoreProvider, ChatPgJsonStoreProvider>();
+            services.AddScoped<IChatRavendbProvider, ChatravendbProvider>();
             services.AddCors(options =>
             {
                 options.AddPolicy(MyAllowSpecificOrigins,
@@ -35,6 +43,8 @@ namespace SignalRtc
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
