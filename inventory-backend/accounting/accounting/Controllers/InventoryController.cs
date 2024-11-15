@@ -32,27 +32,27 @@ namespace accounting.Controllers
         //        transit to store
 
         [HttpPost("source-transfer")]
-        public IActionResult SourceTransfer(TransferRequestDTO transferRequest)
+        public async Task<IActionResult> SourceTransfer(TransferRequestDTO transferRequest)
         {
-            return Ok(_inventoryService.InitiateStockTransfer(transferRequest, TransactionDescription.Source_Distribution));
+            return Ok(await _inventoryService.InitiateStockTransfer(transferRequest, TransactionDescription.Source_Distribution));
         }
 
         [HttpPost("transfer")]
-        public IActionResult StockTransfer(TransferRequestDTO transferRequest)
+        public async Task<IActionResult> StockTransfer(TransferRequestDTO transferRequest)
         {
-            return Ok(_inventoryService.InitiateStockTransfer(transferRequest, TransactionDescription.Transfer_Out));
+            return Ok(await _inventoryService.InitiateStockTransfer(transferRequest, TransactionDescription.Transfer_Out));
         }
 
         [HttpPost("return")]
-        public IActionResult StockReturn(TransferRequestDTO returnRequest)
+        public async Task<IActionResult> StockReturn(TransferRequestDTO returnRequest)
         {
-            return Ok(_inventoryService.InitiateStockTransfer(returnRequest, TransactionDescription.Return));
+            return Ok(await _inventoryService.InitiateStockTransfer(returnRequest, TransactionDescription.Return));
         }
         
         [HttpPost("inbound")]
-        public IActionResult StockInBound(Guid masterTransactionId)
+        public async Task<IActionResult> StockInBound(Guid masterTransactionId)
         {
-            return Ok(_inventoryService.DeliverStock(masterTransactionId));
+            return Ok(await _inventoryService.DeliverStock(masterTransactionId));
         }
     }
 }

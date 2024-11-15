@@ -32,7 +32,7 @@ namespace accounting.Repositories
                     }
                     );
 
-                _context.Products.Add(product);
+                await _context.Products.AddAsync(product);
                 await _context.Accounts.AddRangeAsync(accounts);
 
                 await _context.SaveChangesAsync();

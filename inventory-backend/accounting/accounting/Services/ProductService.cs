@@ -10,6 +10,7 @@ namespace accounting.Services
         private readonly IProductRepository _productRepository = productRepository;
         public async Task<bool> Addproduct(ProductDTO product, Guid siteId)
         {
+            product.ProductId = Guid.NewGuid();
             if(siteId != Guid.Empty && await CheckSite(siteId))
             {
                 var sourceAccount = CreateAccount(product.ProductId, siteId, AccountType.Source);

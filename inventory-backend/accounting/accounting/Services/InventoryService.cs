@@ -3,6 +3,7 @@ using accounting.Entities;
 using accounting.Enums;
 using accounting.Repositories.Interfaces;
 using accounting.Services.Interfaces;
+using System.Security.Principal;
 
 namespace accounting.Services
 {
@@ -12,10 +13,29 @@ namespace accounting.Services
 
         public async Task<bool> InitiateStockTransfer(TransferRequestDTO transferRequest,TransactionDescription description)
         {
-            var (masterTransaction, fromAccount) = await _inventoryRepository.InsertMasterTransaction(transferRequest);
+            var(fromAccountId, toAccountId) = await VerifyAccounts(transferRequest);
+            if (fromAccountId == Guid.Empty) return false;
+
+            var masterTransferRequest = new MasterTransactionDTO
+            {
+                FromAccountId = fromAccountId,
+                ToAccountId = toAccountId,
+                TransactionQuantity = transferRequest.TransactionQuantity
+            };
+            var (masterTransaction, fromAccount) = await _inventoryRepository.InsertMasterTransaction(masterTransferRequest);
             var transitAccount = await _inventoryRepository.GetTransitAccount(fromAccount.ProductId);
 
             return await ProcessFromTransaction(masterTransaction.MasterTransactionId, fromAccount, transitAccount, description, transferRequest.TransactionQuantity);
+        }
+
+        private async Task<(Guid, Guid)> VerifyAccounts(TransferRequestDTO transferRequest)
+        {
+            var (fromAccount, toAccount) = await _inventoryRepository.GetAccounts(transferRequest);
+
+            if (fromAccount is null) return (Guid.Empty, Guid.Empty);
+
+            toAccount ??= await _inventoryRepository.CreateAccount(transferRequest.ToSiteId, transferRequest.ProductId, AccountType.Store);
+            return (fromAccount.AccountId, toAccount.AccountId);
         }
 
         private async Task<bool> ProcessFromTransaction(Guid masterTransactionId, AccountDTO fromAccount, AccountDTO transitAccount, TransactionDescription description, int quantity)
@@ -30,7 +50,8 @@ namespace accounting.Services
                 TransferType = TransferType.DR,
                 TransactionId = transactionId,
                 MasterTransactionId = masterTransactionId,
-                ClosingBalance = fromAccount.AvailableQuantity - quantity
+                ClosingBalance = fromAccount.AvailableQuantity - quantity,
+                TransactionQuantity = quantity
             };
 
             var transitTransaction = new TransactionDTO
@@ -38,11 +59,12 @@ namespace accounting.Services
                 EntryId = Guid.NewGuid(),
                 AccountId = transitAccount.AccountId,
                 AccountType = transitAccount.AccountType,
-                Description = description,
+                Description = TransactionDescription.Transfer_In,
                 TransferType = TransferType.CR,
                 TransactionId = transactionId,
                 MasterTransactionId = masterTransactionId,
-                ClosingBalance = transitAccount.AvailableQuantity + quantity
+                ClosingBalance = transitAccount.AvailableQuantity + quantity,
+                TransactionQuantity = quantity
             };
 
             return await _inventoryRepository.InitiateFromTransaction(fromTransaction, transitTransaction);
@@ -54,7 +76,7 @@ namespace accounting.Services
             var transitAccount = await _inventoryRepository.GetTransitAccount(toAccount.ProductId);
 
 
-            return false;
+            return await ProcessToTransaction(toAccount, transitAccount, masterTransaction);
         }
 
         private async Task<bool> ProcessToTransaction(AccountDTO toAccount, AccountDTO transitAccount, MasterTransactionDTO masterTransaction)
@@ -69,7 +91,8 @@ namespace accounting.Services
                 TransferType = TransferType.CR,
                 TransactionId = transactionId,
                 MasterTransactionId = masterTransaction.MasterTransactionId,
-                ClosingBalance = toAccount.AvailableQuantity + masterTransaction.TransactionQuantity
+                ClosingBalance = toAccount.AvailableQuantity + masterTransaction.TransactionQuantity,
+                TransactionQuantity = masterTransaction.TransactionQuantity
             };
 
             var transitTransaction = new TransactionDTO
@@ -77,11 +100,12 @@ namespace accounting.Services
                 EntryId = Guid.NewGuid(),
                 AccountId = transitAccount.AccountId,
                 AccountType = transitAccount.AccountType,
-                Description = TransactionDescription.Transfer_In,
+                Description = TransactionDescription.Transfer_Out,
                 TransferType = TransferType.DR,
                 TransactionId = transactionId,
                 MasterTransactionId = masterTransaction.MasterTransactionId,
-                ClosingBalance = transitAccount.AvailableQuantity - masterTransaction.TransactionQuantity
+                ClosingBalance = transitAccount.AvailableQuantity - masterTransaction.TransactionQuantity,
+                TransactionQuantity = masterTransaction.TransactionQuantity
             };
 
             return await _inventoryRepository.InitiateToTransaction(toTransaction, transitTransaction);

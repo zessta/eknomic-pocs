@@ -10,7 +10,7 @@ namespace accounting.Mapping
         {
             CreateMap<ProductDTO, Product>();
             CreateMap<AccountDTO, Account>().ReverseMap();
-            CreateMap<TransferRequestDTO, MasterTransaction>();
+            CreateMap<MasterTransactionDTO, MasterTransaction>().ReverseMap();
             CreateMap<TransactionDTO, Transaction>().ReverseMap();
         }
     }

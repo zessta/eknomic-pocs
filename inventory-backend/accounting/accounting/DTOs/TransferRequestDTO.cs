@@ -5,8 +5,9 @@ namespace accounting.DTOs
 {
     public class TransferRequestDTO
     {
-        public Guid FromAccountId { get; set; }
-        public Guid ToAccountId { get; set; }
+        public Guid ProductId { get; set; }
+        public Guid FromSitetId { get; set; }
+        public Guid ToSiteId { get; set; }
         public int TransactionQuantity { get; set; }
     }
 }
