@@ -8,7 +8,7 @@ import { Platform, View, Text } from "react-native";
 export default function TabsLayout() {
   return (
     <Tabs
-      initialRouteName="home"
+      initialRouteName="chatTest"
       screenOptions={{
         tabBarStyle:
           Platform.OS === "ios"

@@ -130,14 +130,10 @@ const ChatScreen: React.FC = () => {
     }
   }, [isConnected]);
 
-  // useEffect(() => {
-  //   // Mark the last message as "seen" when the chat is loaded
-  //   const lastMessage = messages[messages.length - 1];
-  //   if (lastMessage && !lastMessage.sent) {
-  //     console.log('coming inside useeffecr')
-  //     updateSeenStatus(lastMessage._id as string);
-  //   }
-  // }, [messages]); // Run this when messages change
+  useEffect(() => {
+    // Mark the last message as "seen" when the chat is loaded
+    filterMessagesOfReceiver()
+  }, [messages]); // Run this when messages change
 
   const updateSeenStatus = async (messageId: string) => {
     const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
@@ -154,11 +150,27 @@ const ChatScreen: React.FC = () => {
     }
   };
 
+  const filterMessagesOfReceiver= () => {
+    const filterReceiverMessagesFromMessages =messages?.filter((message) => message.user._id === receiverUserId)
+    filterReceiverMessagesFromMessages.forEach((receiverMessage) => {
+      if(!receiverMessage?.received){
+        onNewMessageReceived(receiverMessage)
+      }
+    })
+  }
+
   const onNewMessageReceived = async (newMessage: IMessage) => {
-    // Only update the received status if it's a new message and it's not already marked as received
-    if (newMessage && !newMessage.received) {
-      await set(ref(database, `chats/${receiverUserId}_${senderUserId}/${newMessage._id}/received`), true);
-      console.log('Message received status updated in Firebase:', newMessage._id);
+    const messageRef = ref(database, `chats/${receiverUserId}_${senderUserId}`);
+    const snapshot = await messageRef.once('value');
+    const messages = snapshot.val();
+    for (let messageKey in messages) {
+      const message = messages[messageKey];
+      // Only update the received status if it's a new message and it's not already marked as received
+      if (message._id === newMessage._id) {
+        console.log('coming isnide')
+        await set(ref(database, `chats/${receiverUserId}_${senderUserId}/${messageKey}/received`), true);
+        break; // Once we reach the messageId, we stop updating previous messages
+      }
     }
   };
 
@@ -185,7 +197,7 @@ const ChatScreen: React.FC = () => {
     senderMessagesRef.on('value', snapshot => {
       const senderMessages = snapshot.val() ? Object.values(snapshot.val()) : [];
       receiverMessagesRef.on('value', snapshot => {
-        const receiverMessages = snapshot.val() ? Object.values(snapshot.val()) : [];
+        const receiverMessages: IMessage[] = snapshot.val() ? Object.values(snapshot.val()) : [];
         const allMessages = [...senderMessages.reverse(), ...receiverMessages.reverse()].map(msg => ({
           ...msg,
           createdAt: new Date(msg.createdAt).getTime(),
@@ -194,7 +206,6 @@ const ChatScreen: React.FC = () => {
         if (newMessages.length > 0) {
           showNotification(newMessages);
         }
-
         setMessages(allMessages);
         saveDBMessages(allMessages);
       });
@@ -307,22 +318,6 @@ const ChatScreen: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    loadMessages();
-    loadOfflineMessages();
-
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsConnected(state.isConnected!);
-    });
-
-    return () => unsubscribe();
-  }, [receiverUserId]);
-
-  useEffect(() => {
-    if (isConnected) {
-      syncOfflineMessagesToFirebase();
-    }
-  }, [isConnected]);
 
   const handleSend = async (newMessages: IMessage[]) => {
     console.log('newMessages', newMessages)
