@@ -8,6 +8,7 @@ import { ref, set, onValue } from '@react-native-firebase/database';
 import { useNavigation, useRouter } from 'expo-router';
 // import database from '@react-native-firebase/database'; // Firebase Database module
 import { database } from '../components/firebaseConfig'; // Adjust the path accordingly
+import { startBackgroundSync } from '@/components/BackgroundFetch';
 
 interface User {
   id: string;
@@ -27,7 +28,11 @@ const UserScreen: React.FC = () => {
   useEffect(() => {
     navigation.setOptions({ title: 'Eknomic' });
   }, [navigation]);
-
+  
+  useEffect(() => {
+    // Start the background sync task
+    startBackgroundSync();
+  }, []);
   // Load users from Firebase Realtime Database
   useEffect(() => {
     setLoading(true); // Start loading when fetching users
