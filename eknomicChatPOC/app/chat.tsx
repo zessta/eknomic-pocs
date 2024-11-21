@@ -130,14 +130,74 @@ const ChatScreen: React.FC = () => {
     }
   }, [isConnected]);
 
+  useEffect(() => {
+    // Mark the last message as "seen" when the chat is loaded
+    filterMessagesOfReceiver()
+  }, [messages]); // Run this when messages change
+
+  const updateSeenStatus = async (messageId: string) => {
+    const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
+    const snapshot = await messageRef.once('value');
+    const messages = snapshot.val();
+  
+    for (let messageKey in messages) {
+      const message = messages[messageKey];
+      if (message._id === messageId) {
+        break; // Once we reach the messageId, we stop updating previous messages
+      }
+      // Update the "seen" status
+      await set(ref(database, `chats/${senderUserId}_${receiverUserId}/${messageKey}/sent`), true);
+    }
+  };
+
+  const filterMessagesOfReceiver= () => {
+    const filterReceiverMessagesFromMessages =messages?.filter((message) => message.user._id === receiverUserId)
+    filterReceiverMessagesFromMessages.forEach((receiverMessage) => {
+      if(!receiverMessage?.received){
+        onNewMessageReceived(receiverMessage)
+      }
+    })
+  }
+
+  const onNewMessageReceived = async (newMessage: IMessage) => {
+    const messageRef = ref(database, `chats/${receiverUserId}_${senderUserId}`);
+    const snapshot = await messageRef.once('value');
+    const messages = snapshot.val();
+    for (let messageKey in messages) {
+      const message = messages[messageKey];
+      // Only update the received status if it's a new message and it's not already marked as received
+      if (message._id === newMessage._id) {
+        console.log('coming isnide')
+        await set(ref(database, `chats/${receiverUserId}_${senderUserId}/${messageKey}/received`), true);
+        break; // Once we reach the messageId, we stop updating previous messages
+      }
+    }
+  };
+
+  const updateReceivedStatus = async (messageId: string) => {
+    const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
+    const snapshot = await messageRef.once('value');
+    const messages = snapshot.val();
+  
+    for (let messageKey in messages) {
+      const message = messages[messageKey];
+      if (message._id === messageId) {
+        break; // Once we reach the messageId, we stop updating previous messages
+      }
+      // Update the "seen" status
+      await set(ref(database, `chats/${senderUserId}_${receiverUserId}/${messageKey}/received`), true);
+    }
+  };
+
   const loadMessages = () => {
+    console.log('coming here on every new message')
     const senderMessagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
     const receiverMessagesRef = ref(database, `chats/${receiverUserId}_${senderUserId}`);
 
     senderMessagesRef.on('value', snapshot => {
       const senderMessages = snapshot.val() ? Object.values(snapshot.val()) : [];
       receiverMessagesRef.on('value', snapshot => {
-        const receiverMessages = snapshot.val() ? Object.values(snapshot.val()) : [];
+        const receiverMessages: IMessage[] = snapshot.val() ? Object.values(snapshot.val()) : [];
         const allMessages = [...senderMessages.reverse(), ...receiverMessages.reverse()].map(msg => ({
           ...msg,
           createdAt: new Date(msg.createdAt).getTime(),
@@ -146,7 +206,6 @@ const ChatScreen: React.FC = () => {
         if (newMessages.length > 0) {
           showNotification(newMessages);
         }
-
         setMessages(allMessages);
         saveDBMessages(allMessages);
       });
@@ -202,6 +261,7 @@ const ChatScreen: React.FC = () => {
       text: summaryMessage.text,
       createdAt: summaryMessage.createdAt, // Save as ISO string
       user: summaryMessage.user,
+      sent: false, // Initially false
     });
 
     setMessages(prev => GiftedChat.append(prev, [summaryMessage]));
@@ -233,6 +293,10 @@ const ChatScreen: React.FC = () => {
           text: message.text,
           createdAt: new Date().getTime(),
           user: message.user,
+          receiverUserId,
+          sent: true, // Initially false
+          pending: false,
+          received: false
         });
       }
       await AsyncStorage.removeItem('offlineMessages');
@@ -254,28 +318,16 @@ const ChatScreen: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    loadMessages();
-    loadOfflineMessages();
-
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsConnected(state.isConnected!);
-    });
-
-    return () => unsubscribe();
-  }, [receiverUserId]);
-
-  useEffect(() => {
-    if (isConnected) {
-      syncOfflineMessagesToFirebase();
-    }
-  }, [isConnected]);
 
   const handleSend = async (newMessages: IMessage[]) => {
+    console.log('newMessages', newMessages)
     // event.persist(); // Persist the event to prevent it from being released
 
   // Log the event to make sure it's still available after persisting it
     const message = newMessages[0];
+    newMessages[0].pending = true;
+    newMessages[0].sent = false;
+    newMessages[0].received = false;
     const updatedMessages = GiftedChat.append(messages, newMessages);
     setMessages(updatedMessages);
 
@@ -287,9 +339,13 @@ const ChatScreen: React.FC = () => {
         text: message.text,
         createdAt: new Date().getTime(),
         user: message.user,
+        receiverUserId,
+        sent: true, // Initially false
+        pending: false,
+        received: false
       });
     } else {
-      const updatedPendingMessages = GiftedChat.append(pendingMessages, newMessages);
+      const updatedPendingMessages = GiftedChat.append(messages, newMessages);
       setPendingMessages(updatedPendingMessages);
       await AsyncStorage.setItem('offlineMessages', JSON.stringify(updatedPendingMessages));
     }
@@ -450,6 +506,13 @@ const ChatScreen: React.FC = () => {
         />
       </TouchableWithoutFeedback>
         )}
+        renderFooter={(props) => {
+          if (props.currentMessage.sent) {
+            return <Text style={{ color: 'black', fontSize: 12 }}>Seen</Text>;
+          } else {
+            return <Text style={{ color: 'black', fontSize: 12 }}>Sent</Text>;
+          }
+        }}
       />
     );
   };
@@ -488,6 +551,9 @@ const ChatScreen: React.FC = () => {
       text: `You selected: ${option}`,
       createdAt: new Date().getTime(),
       user: { _id: 1, name: 'User' },
+      sent: false,
+      received: false,
+      pending: true
     };
     handleSend([responseMessage]);
   };
@@ -542,7 +608,8 @@ const ChatScreen: React.FC = () => {
                    user={{
             _id: senderUserId,
             name: senderUserName?.toString?.()!,
-            avatar: `https://ui-avatars.com/api/?background=000000&color=FFF&name=${senderUserName}`
+            avatar: `https://ui-avatars.com/api/?background=000000&color=FFF&name=${senderUserName}`,
+          
           }}
           renderInputToolbar={props => customInputToolbar(props, handleImagePicker)}
           renderUsernameOnMessage={true}
