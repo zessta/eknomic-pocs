@@ -9,6 +9,7 @@ import { useNavigation, useRouter } from 'expo-router';
 // import database from '@react-native-firebase/database'; // Firebase Database module
 import { database } from '../components/firebaseConfig'; // Adjust the path accordingly
 import { startBackgroundSync } from '@/components/BackgroundFetch';
+import { initializeBackgroundFetch } from '@/components/BackgroundOfflineTask';
 
 interface User {
   id: string;
@@ -31,7 +32,8 @@ const UserScreen: React.FC = () => {
   
   useEffect(() => {
     // Start the background sync task
-    startBackgroundSync();
+    // startBackgroundSync();
+    initializeBackgroundFetch()
   }, []);
   // Load users from Firebase Realtime Database
   useEffect(() => {

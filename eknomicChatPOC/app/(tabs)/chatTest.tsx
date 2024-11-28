@@ -30,9 +30,6 @@ const UserListScreen: React.FC = ({ navigation }: any) => {
         return () => unsubscribe();
     }, []);
 
-    // Find sender's name from the users list
-    // const senderUserName = users.length ? users.find((user) => user.id === senderUserId)!?.name : '';
-
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -52,7 +49,7 @@ const UserListScreen: React.FC = ({ navigation }: any) => {
                                     pathname: '/chat',
                                     params: { receiverUserId: item.id, receiverUserName: item.name, senderUserName, senderUserId }
                                 }}>
-                                <Image source={{ uri: item.avatar || 'https://ui-avatars.com/api/?name=User' }} style={styles.avatar} />
+                                <Image source={{ uri: item.avatar || `https://ui-avatars.com/api/?background=000000&color=FFF&name=${item.name}`, }} style={styles.avatar} />
                                 <View style={styles.userInfo}>
                                     <Text style={styles.userName}>{item.name}</Text>
                                     <Text style={styles.userStatus}>Active</Text>
@@ -103,6 +100,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.3,
         shadowRadius: 2,
+        display:'flex'
     },
     avatar: {
         width: 50,
