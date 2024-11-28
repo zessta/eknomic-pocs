@@ -5,6 +5,7 @@ import { ref, onValue } from '@react-native-firebase/database'; // Firebase data
 import { Link } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
+import { ChatMessage } from '../chat';
 
 export interface User {
     id: string;
@@ -54,7 +55,13 @@ const UserListScreen: React.FC = ({ navigation }: any) => {
                                     <Text style={styles.userName}>{item.name}</Text>
                                     <Text style={styles.userStatus}>Active</Text>
                                 </View>
+                                {/* <View style={styles.badge}>
+                                    <Text style={styles.badgeText}>10</Text>
+                                </View> */}
+                                <View style={{  justifyContent:'flex-end'}}>
+                                <CircleWithText receiverUserId={item.id} senderUserId={senderUserId as string}/>
                                 <MaterialIcons name="chevron-right" size={24} color="#B0BEC5" />
+                                </View>
                             </Link>
                         );
                     }
@@ -100,7 +107,8 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.3,
         shadowRadius: 2,
-        display:'flex'
+        display: 'flex',
+        justifyContent: 'space-between', // Ensure the badge aligns at the end
     },
     avatar: {
         width: 50,
@@ -120,9 +128,63 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#B0BEC5',
     },
+    badge: {
+        backgroundColor: '#FF5722', // Badge color (you can change this)
+        // paddingVertical: 4,
+        // paddingHorizontal: 5,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 3
+    },
+    badgeText: {
+        color: '#fff',
+        fontWeight: '600',
+        fontSize: 12,
+    },
     listContent: {
         paddingBottom: 20,
+    },
+    circleContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        flex: 1,
+    },
+    circle: {
+        minWidth: 20, // Circle diameter
+        minHeight: 20, // Circle diameter
+        borderRadius: 10, // Half of the width/height to make it a circle
+        backgroundColor: 'green', // Circle background color
+        justifyContent: 'center', // Vertically center the text
+        alignItems: 'center', // Horizontally center the text
+        padding: 1
+    },
+    circleText: {
+        color: '#fff', // Text color inside the circle
+        fontSize: 12, // Text size
+        fontWeight: 'bold', // Text weight
     },
 });
 
 export default UserListScreen;
+
+export const CircleWithText = ({receiverUserId, senderUserId}:{receiverUserId: string, senderUserId: string}) => {
+    const receiverMessagesRef = ref(database, `chats/${receiverUserId}_${senderUserId}`);
+    const [unreadMes, setUnReadMess] = useState<number>(0)
+    receiverMessagesRef.on('value', snapshot => {
+        const receiverMessages: ChatMessage[] = snapshot.val() ? Object.values(snapshot.val()) : [];
+        const unreadMessages = receiverMessages.filter((message) => !message.received)
+        setUnReadMess( unreadMessages.length)
+    })
+    return (
+        <View style={styles.circleContainer}>
+            {unreadMes > 0 ? 
+            <View style={styles.circle}>
+                <Text style={styles.circleText}>{unreadMes}</Text>
+            </View>
+            : null}
+        </View>
+    );
+};
+
+
