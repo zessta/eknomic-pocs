@@ -8,7 +8,7 @@ import { Platform, View, Text } from "react-native";
 export default function TabsLayout() {
   return (
     <Tabs
-      initialRouteName="home"
+      initialRouteName="chatTest"
       screenOptions={{
         tabBarStyle:
           Platform.OS === "ios"
@@ -52,6 +52,31 @@ export default function TabsLayout() {
               <TabBarIcon name="files-o" color={color} size={24} />
               <Text style={{ marginTop: 5, fontSize: 10, opacity: 0.5 }}>
                 Chat
+              </Text>
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="offlineScreen"
+        options={{
+          title: "",
+          headerShown: false,
+          href: {
+            pathname: "/offlineScreen",
+          },
+          tabBarIcon: ({ color }) => (
+            <View
+              style={{
+                flexDirection: "column",
+                alignItems: "center",
+                marginTop: 17,
+                backgroundColor: "transparent",
+              }}
+            >
+              <TabBarIcon name="files-o" color={color} size={24} />
+              <Text style={{ marginTop: 5, fontSize: 10, opacity: 0.5 }}>
+                Offline
               </Text>
             </View>
           ),

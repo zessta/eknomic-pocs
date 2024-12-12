@@ -37,6 +37,10 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import { database } from '../components/firebaseConfig'; // Adjust the path accordingly
 import { push, ref, set } from '@react-native-firebase/database';
+import { initializeBackgroundFetch } from '@/components/BackgroundOfflineTask';
+import * as FileSystem from 'expo-file-system';
+
+export type ChatMessage = IMessage & { senderUserId : string; receiverUserId : string}
 
 const customInputToolbar = (props: any, handleImagePicker: () => void)=> {
   return (
@@ -96,12 +100,12 @@ const uploadImageToFirebase = async (uri: string): Promise<string> => {
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation();
   const { receiverUserId, receiverUserName, senderUserId, senderUserName } = useLocalSearchParams() as any;
-  const [messages, setMessages] = useState<IMessage[]>([]);
-  const [pendingMessages, setPendingMessages] = useState<IMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [pendingMessages, setPendingMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(true);
   const [showSummary, setShowSummary] = useState(false);
   const [iconPosition] = useState(new Animated.ValueXY({ x: 100, y: 100 }));
-  const [replyMessage, setReplyMessage] = useState<IMessage | null>(null);
+  const [replyMessage, setReplyMessage] = useState<ChatMessage | null>(null);
   const [isModalVisible, setModalVisible] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
@@ -111,7 +115,9 @@ const ChatScreen: React.FC = () => {
   };
 
   const clearReplyMessage = () => setReplyMessage(null);
-
+  // useEffect(() => {
+  //   initializeBackgroundFetch(); // Register background fetch task
+  // }, []);
   useEffect(() => {
     navigation.setOptions({ title: receiverUserName });
     loadMessages();
@@ -130,6 +136,64 @@ const ChatScreen: React.FC = () => {
     }
   }, [isConnected]);
 
+  useEffect(() => {
+    // Mark the last message as "seen" when the chat is loaded
+    filterMessagesOfReceiver()
+  }, [messages]); // Run this when messages change
+
+  const updateSeenStatus = async (messageId: string) => {
+    const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
+    const snapshot = await messageRef.once('value');
+    const messages = snapshot.val();
+  
+    for (let messageKey in messages) {
+      const message = messages[messageKey];
+      if (message._id === messageId) {
+        break; // Once we reach the messageId, we stop updating previous messages
+      }
+      // Update the "seen" status
+      await set(ref(database, `chats/${senderUserId}_${receiverUserId}/${messageKey}/sent`), true);
+    }
+  };
+
+  const filterMessagesOfReceiver= () => {
+    const filterReceiverMessagesFromMessages =messages?.filter((message) => message.user._id === receiverUserId)
+    filterReceiverMessagesFromMessages.forEach((receiverMessage) => {
+      if(!receiverMessage?.received){
+        onNewMessageReceived(receiverMessage)
+      }
+    })
+  }
+
+  const onNewMessageReceived = async (newMessage: ChatMessage) => {
+    const messageRef = ref(database, `chats/${receiverUserId}_${senderUserId}`);
+    const snapshot = await messageRef.once('value');
+    const messages = snapshot.val();
+    for (let messageKey in messages) {
+      const message = messages[messageKey];
+      // Only update the received status if it's a new message and it's not already marked as received
+      if (message._id === newMessage._id) {
+        await set(ref(database, `chats/${receiverUserId}_${senderUserId}/${messageKey}/received`), true);
+        break; // Once we reach the messageId, we stop updating previous messages
+      }
+    }
+  };
+
+  const updateReceivedStatus = async (messageId: string) => {
+    const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
+    const snapshot = await messageRef.once('value');
+    const messages = snapshot.val();
+  
+    for (let messageKey in messages) {
+      const message = messages[messageKey];
+      if (message._id === messageId) {
+        break; // Once we reach the messageId, we stop updating previous messages
+      }
+      // Update the "seen" status
+      await set(ref(database, `chats/${senderUserId}_${receiverUserId}/${messageKey}/received`), true);
+    }
+  };
+
   const loadMessages = () => {
     const senderMessagesRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
     const receiverMessagesRef = ref(database, `chats/${receiverUserId}_${senderUserId}`);
@@ -137,8 +201,8 @@ const ChatScreen: React.FC = () => {
     senderMessagesRef.on('value', snapshot => {
       const senderMessages = snapshot.val() ? Object.values(snapshot.val()) : [];
       receiverMessagesRef.on('value', snapshot => {
-        const receiverMessages = snapshot.val() ? Object.values(snapshot.val()) : [];
-        const allMessages = [...senderMessages.reverse(), ...receiverMessages.reverse()].map(msg => ({
+        const receiverMessages: ChatMessage[] = snapshot.val() ? Object.values(snapshot.val()) : [];
+        const allMessages = [...senderMessages.reverse(), ...receiverMessages.reverse()].map((msg) => ({
           ...msg,
           createdAt: new Date(msg.createdAt).getTime(),
         })).sort((a, b) => a.createdAt - b.createdAt);
@@ -146,7 +210,6 @@ const ChatScreen: React.FC = () => {
         if (newMessages.length > 0) {
           showNotification(newMessages);
         }
-
         setMessages(allMessages);
         saveDBMessages(allMessages);
       });
@@ -154,7 +217,7 @@ const ChatScreen: React.FC = () => {
   };
 
 
-  const showNotification = async (newMessages: IMessage[]) => {
+  const showNotification = async (newMessages: ChatMessage[]) => {
     const notificationMessage = newMessages.length === 1
       ? `New message from ${newMessages[0].user.name}: ${newMessages[0].text}`
       : `You have ${newMessages.length} new messages.`;
@@ -170,17 +233,26 @@ const ChatScreen: React.FC = () => {
 
   const loadOfflineMessages = async () => {
     try {
-      const storedMessages = await AsyncStorage.getItem('offlineMessages');
-      if (storedMessages) {
-        const messagesFromStorage: IMessage[] = JSON.parse(storedMessages);
+    //   const storedMessages = await AsyncStorage.getItem('offlineMessages');
+    //   if (storedMessages) {
+    //     const messagesFromStorage: ChatMessage[] = JSON.parse(storedMessages);
+    //     setMessages(prevMessages => [...prevMessages, ...messagesFromStorage]);
+    //   }
+    // } catch (error) {
+    //   console.error('Failed to load offline messages:', error);
+    // }
+      const offlineMessages = await FileSystem.readAsStringAsync(FileSystem.documentDirectory + 'offlineMessages.json').catch(() => '[]');
+      const messagesFromStorage: ChatMessage[] = JSON.parse(offlineMessages);
+      if(messagesFromStorage.length){
         setMessages(prevMessages => [...prevMessages, ...messagesFromStorage]);
       }
-    } catch (error) {
-      console.error('Failed to load offline messages:', error);
     }
+    catch (error) {
+        console.error('Failed to load offline messages:', error);
+      }
   };
 
-  const saveDBMessages = async (messagesList: IMessage[]) => {
+  const saveDBMessages = async (messagesList: ChatMessage[]) => {
     try {
       await AsyncStorage.setItem('firebaseMessages', JSON.stringify(messagesList));
     } catch (error) {
@@ -189,7 +261,7 @@ const ChatScreen: React.FC = () => {
   };
 
   const handleSummaryReceived = async (newSummary: string) => {
-    const summaryMessage: IMessage = {
+    const summaryMessage: ChatMessage = {
       _id: Math.random().toString(),
       text: newSummary,
       createdAt: new Date().getTime(),
@@ -202,6 +274,9 @@ const ChatScreen: React.FC = () => {
       text: summaryMessage.text,
       createdAt: summaryMessage.createdAt, // Save as ISO string
       user: summaryMessage.user,
+      sent: false, // Initially false
+      senderUserId,
+      receiverUserId
     });
 
     setMessages(prev => GiftedChat.append(prev, [summaryMessage]));
@@ -211,7 +286,7 @@ const ChatScreen: React.FC = () => {
     console.log('Received Summary:', newSummary);
   };
 
-  const saveOfflineMessages = async (messagesList: IMessage[]) => {
+  const saveOfflineMessages = async (messagesList: ChatMessage[]) => {
     try {
       await AsyncStorage.setItem('offlineMessages', JSON.stringify(messagesList.reverse()));
     } catch (error) {
@@ -220,8 +295,12 @@ const ChatScreen: React.FC = () => {
   };
 
   const syncOfflineMessagesToFirebase = async () => {
-    const offlineMessages = await AsyncStorage.getItem('offlineMessages');
-    const messagesFromStorage: IMessage[] = JSON.parse(offlineMessages || '[]');
+    // const offlineMessages = await AsyncStorage.getItem('offlineMessages');
+    // const messagesFromStorage: ChatMessage[] = JSON.parse(offlineMessages || '[]');
+
+      const offlineMessages = await FileSystem.readAsStringAsync(FileSystem.documentDirectory + 'offlineMessages.json').catch(() => '[]');
+      const messagesFromStorage: IMessage[] = JSON.parse(offlineMessages);
+      console.log('messagesFromStorage', messagesFromStorage)
 
     if (messagesFromStorage.length) {
       const messageRef = ref(database, `chats/${senderUserId}_${receiverUserId}`);
@@ -233,9 +312,16 @@ const ChatScreen: React.FC = () => {
           text: message.text,
           createdAt: new Date().getTime(),
           user: message.user,
+          receiverUserId,
+          senderUserId,
+          sent: true, // Initially false
+          pending: false,
+          received: false
         });
       }
-      await AsyncStorage.removeItem('offlineMessages');
+      // await AsyncStorage.removeItem('offlineMessages');
+          // Clear offline messages after sending
+        await FileSystem.writeAsStringAsync(FileSystem.documentDirectory + 'offlineMessages.json', '[]');
     }
   };
 
@@ -254,28 +340,20 @@ const ChatScreen: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    loadMessages();
-    loadOfflineMessages();
 
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsConnected(state.isConnected!);
-    });
-
-    return () => unsubscribe();
-  }, [receiverUserId]);
-
-  useEffect(() => {
-    if (isConnected) {
-      syncOfflineMessagesToFirebase();
-    }
-  }, [isConnected]);
-
-  const handleSend = async (newMessages: IMessage[]) => {
+  const handleSend = async (newMessages: ChatMessage[]) => {
+    console.log('newMessages', newMessages)
     // event.persist(); // Persist the event to prevent it from being released
 
   // Log the event to make sure it's still available after persisting it
     const message = newMessages[0];
+    newMessages[0].pending = true;
+    newMessages[0].sent = false;
+    newMessages[0].received = false;
+    newMessages[0].senderUserId = senderUserId;
+    newMessages[0].receiverUserId= receiverUserId
+    newMessages[0].createdAt = new Date().getTime()
+
     const updatedMessages = GiftedChat.append(messages, newMessages);
     setMessages(updatedMessages);
 
@@ -287,15 +365,37 @@ const ChatScreen: React.FC = () => {
         text: message.text,
         createdAt: new Date().getTime(),
         user: message.user,
+        receiverUserId,
+        senderUserId,
+        sent: true, // Initially false
+        pending: false,
+        received: false
       });
     } else {
-      const updatedPendingMessages = GiftedChat.append(pendingMessages, newMessages);
-      setPendingMessages(updatedPendingMessages);
-      await AsyncStorage.setItem('offlineMessages', JSON.stringify(updatedPendingMessages));
+      // const updatedPendingMessages = GiftedChat.append(messages, newMessages);
+      // setPendingMessages(updatedPendingMessages);
+      // await AsyncStorage.setItem('offlineMessages', JSON.stringify(updatedPendingMessages));
+      storeMessageInFileSystem(message)
+        // Store offline messages locally
+  // const storeMessageLocally = async (newMessage: IMessage) => {
+  //   const offlineMessages = await FileSystem.readAsStringAsync(FileSystem.documentDirectory + 'offlineMessages.json').catch(() => '[]');
+  //   const messagesArray: IMessage[] = JSON.parse(offlineMessages);
+  //   messagesArray.push(newMessage);
+  //   await FileSystem.writeAsStringAsync(FileSystem.documentDirectory + 'offlineMessages.json', JSON.stringify(messagesArray));
+  // };
     }
   };
 
+  const storeMessageInFileSystem = async(newMessage: ChatMessage) => {
+      // Store offline messages locally
+    const offlineMessages = await FileSystem.readAsStringAsync(FileSystem.documentDirectory + 'offlineMessages.json').catch(() => '[]');
+    const messagesArray: ChatMessage[] = JSON.parse(offlineMessages);
+    messagesArray.push(newMessage);
+    await FileSystem.writeAsStringAsync(FileSystem.documentDirectory + 'offlineMessages.json', JSON.stringify(messagesArray));
+  }
+
   const handleImagePicker = async () => {
+    console.log('image picker')
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -307,7 +407,7 @@ const ChatScreen: React.FC = () => {
     if (!result.canceled) {
       const images = result.assets;
       const uploadPromises = images.map(async (image) => {
-        const message: IMessage = {
+        const message: ChatMessage = {
           _id: Math.random().toString(),
           text: '',
           createdAt: new Date().getTime(),
@@ -344,7 +444,7 @@ const ChatScreen: React.FC = () => {
     }
   };
 
-  const handleReply = (message: IMessage) => {
+  const handleReply = (message: ChatMessage) => {
     setReplyMessage(message);
     setModalVisible(true);
   };
@@ -404,7 +504,7 @@ const ChatScreen: React.FC = () => {
     })
   ).current;
 
-  const onLongPress = (context: any, message: IMessage) => {
+  const onLongPress = (context: any, message: ChatMessage) => {
     context.actionSheet().showActionSheetWithOptions(
       {
         options: ["reply", "copy", "cancel"],
@@ -450,6 +550,13 @@ const ChatScreen: React.FC = () => {
         />
       </TouchableWithoutFeedback>
         )}
+        renderFooter={(props) => {
+          if (props.currentMessage.sent) {
+            return <Text style={{ color: 'black', fontSize: 12 }}>Seen</Text>;
+          } else {
+            return <Text style={{ color: 'black', fontSize: 12 }}>Sent</Text>;
+          }
+        }}
       />
     );
   };
@@ -483,16 +590,19 @@ const ChatScreen: React.FC = () => {
   };
 
   const handleButtonAction = (option: string) => {
-    const responseMessage: IMessage = {
+    const responseMessage: ChatMessage = {
       _id: Math.random().toString(),
       text: `You selected: ${option}`,
       createdAt: new Date().getTime(),
       user: { _id: 1, name: 'User' },
+      sent: false,
+      received: false,
+      pending: true
     };
     handleSend([responseMessage]);
   };
 
-  const renderAutomatedMessage = (message: IMessage) => {
+  const renderAutomatedMessage = (message: ChatMessage) => {
     return (
       <View style={styles.automatedMessageContainer}>
         <Text style={styles.automatedMessageText}>{message.text}</Text>
@@ -542,7 +652,8 @@ const ChatScreen: React.FC = () => {
                    user={{
             _id: senderUserId,
             name: senderUserName?.toString?.()!,
-            avatar: `https://ui-avatars.com/api/?background=000000&color=FFF&name=${senderUserName}`
+            avatar: `https://ui-avatars.com/api/?background=000000&color=FFF&name=${senderUserName}`,
+          
           }}
           renderInputToolbar={props => customInputToolbar(props, handleImagePicker)}
           renderUsernameOnMessage={true}
